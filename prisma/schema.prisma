@@ -1,0 +1,83 @@
+// Link the provider and client, 
+// load the db URL from the environment 
+// variables using 'env()'
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Patient Table/Relation Creation
+model Patient {
+  // Table attributes and basic constraints:
+  id                 String              @id @default(uuid()) // PK + unique user id
+  patientId          String              @unique              // Unique, can't be deprecated
+  email              String              @unique
+  name               String
+  age                Int
+  dateOfBirth        DateTime
+  term               Int
+  dueDate            DateTime
+  hasMessage         Boolean             @default(false)      // Set default value to false, as in user doesn't have a message
+  
+  patientAssignments PatientAssignment[] // each patient belongs to a set of assignments relationships with doctors
+  readings           Reading[]           // each patient has his own glucose readings list
+}
+
+// Doctor Table/Relation Creation
+model Doctor {
+  // Table attributes and basic constraints:
+  id                 String              @id @default(uuid()) // PK + unique user id
+  email              String              @unique
+  name               String
+  specialty          String?             // Nullable
+
+  // Each healthcare provider can have a list of assignments to oversee the patients
+  patientAssignments PatientAssignment[] 
+}
+
+// PatientAssignment Table/Relation Creation
+// tracks the assignment of patients to doctors
+model PatientAssignment {
+  id            String   @id @default(uuid()) // PK unique ID
+  doctorId      String
+  patientId     String
+  lastVisitDate DateTime
+  addedDate     DateTime
+
+  // Relationships and forgein keys:
+  // doctor overseeing the patient, mapped to doctorID
+  doctor        Doctor   @relation(fields: [doctorId], references: [id])
+  // patient being overseen, mapped to patientID 
+  patient       Patient  @relation(fields: [patientId], references: [id]) 
+}
+
+// Reading Table/Relation Creation
+model Reading {
+  id        String      @id @default(uuid()) // PK + unique user id
+  patientId String
+  date      DateTime  // date of the when the reading was taken
+  time      String    // time of when the reading was taken
+  // this type is defined at the bottom of the file, 
+  // enumarted the timings of the reading
+  type      ReadingType 
+  level     Float
+  // Nullable attribute, patient may not have record notes on the reading
+  notes     String?   
+
+  // Relationships and forgein keys:
+  // patient who recorded the reading, mapped to patientID
+  patient   Patient     @relation(fields: [patientId], references: [id]) 
+}
+// enumarting the 6 types of the readings we could have
+enum ReadingType {
+  BEFORE_BREAKFAST
+  AFTER_BREAKFAST
+  BEFORE_LUNCH
+  AFTER_LUNCH
+  BEFORE_DINNER
+  AFTER_DINNER
+}
