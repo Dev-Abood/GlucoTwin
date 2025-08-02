@@ -1,6 +1,7 @@
 // Link the provider and client, 
 // load the db URL from the environment 
 // variables using 'env()'
+
 generator client {
   provider = "prisma-client-js"
 }

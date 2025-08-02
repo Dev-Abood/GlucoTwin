@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Header from "@/components/header";
 import Sidebar from "@/components/sidebar";
 
-//TODO: Check for this limit, is it correct?
+//TODO: This will chnage into the 6 test cases we have
 const HIGH_GLUCOSE_THRESHOLD = 140;
 
 //* Define the return and data types that we are getting from the props data passed by the server component
@@ -27,8 +27,8 @@ interface DashboardProps {
   };
 }
 
-export default function Dashboard({ doctorData }: DashboardProps) {
-  const [isLoading, setIsLoading] = useState(true);
+export default function Dashboard({ doctorData }: DashboardProps){
+  const [isLoading, setIsLoading] = useState(true); // track loading status
 
   const today = new Date();
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -38,8 +38,8 @@ export default function Dashboard({ doctorData }: DashboardProps) {
   
   let requireAttentionCount = 0;
 
-  for (const { patient } of doctorData.patientAssignments) {
-    for (const reading of patient.readings) {
+  for(const { patient } of doctorData.patientAssignments) {
+    for(const reading of patient.readings){
       const typeStr = String(reading.type).toLowerCase();
       const isBefore = typeStr.includes("before");
       const threshold = isBefore ? 105 : 160;

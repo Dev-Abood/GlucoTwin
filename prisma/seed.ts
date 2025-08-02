@@ -12,6 +12,7 @@ async function main() {
   const deleted = await prisma.reading.deleteMany({
     where: { patientId }
   })
+  
   console.log(`Deleted ${deleted.count} old readings for patient ${patientId}`)
 
   // 2. Prepare seed data: six readings per day for the last 7 days,

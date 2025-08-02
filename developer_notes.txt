@@ -1,6 +1,6 @@
 Things to check for or might not be correct + to add:
 
-- [ ]  Creating a repo and version control
+- [✔️]  Creating a repo and version control
 - [ ]  Better document the code
 - [ ]  Make the doctor's visualizations the same as patients
 - [ ]  The status of the glucose needs to implement the 6 cases.
@@ -18,4 +18,4 @@ Things to check for or might not be correct + to add:
 - [✔️]  A way for doctors to be able to register in the system
 - [ ]  Handle the case for /doctor or /patient where it did not find the route (might push them to the dashboard)
 - [✔️]  Fix any errors with date picker in create readings (like it keeps moving up and down ??)
-- [ ]  Fix any hydration error in the app for maybe theme provider
+- [✔️ ]  Fix any hydration error in the app for maybe theme provider
