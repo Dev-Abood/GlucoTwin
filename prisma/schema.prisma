@@ -14,30 +14,30 @@ datasource db {
 // Patient Table/Relation Creation
 model Patient {
   // Table attributes and basic constraints:
-  id                 String              @id @default(uuid()) // PK + unique user id
-  patientId          String              @unique              // Unique, can't be deprecated
-  email              String              @unique
-  name               String
-  age                Int
-  dateOfBirth        DateTime
-  term               Int
-  dueDate            DateTime
-  hasMessage         Boolean             @default(false)      // Set default value to false, as in user doesn't have a message
-  
+  id          String   @id @default(uuid()) // PK + unique user id
+  patientId   String   @unique // Unique, can't be deprecated
+  email       String   @unique
+  name        String
+  age         Int
+  dateOfBirth DateTime
+  term        Int
+  dueDate     DateTime
+  hasMessage  Boolean  @default(false) // Set default value to false, as in user doesn't have a message
+
   patientAssignments PatientAssignment[] // each patient belongs to a set of assignments relationships with doctors
-  readings           Reading[]           // each patient has his own glucose readings list
+  readings           Reading[] // each patient has his own glucose readings list
 }
 
 // Doctor Table/Relation Creation
 model Doctor {
   // Table attributes and basic constraints:
-  id                 String              @id @default(uuid()) // PK + unique user id
-  email              String              @unique
-  name               String
-  specialty          String?             // Nullable
+  id        String  @id @default(uuid()) // PK + unique user id
+  email     String  @unique
+  name      String
+  specialty String? // Nullable
 
   // Each healthcare provider can have a list of assignments to oversee the patients
-  patientAssignments PatientAssignment[] 
+  patientAssignments PatientAssignment[]
 }
 
 // PatientAssignment Table/Relation Creation
@@ -51,28 +51,50 @@ model PatientAssignment {
 
   // Relationships and forgein keys:
   // doctor overseeing the patient, mapped to doctorID
-  doctor        Doctor   @relation(fields: [doctorId], references: [id])
+  doctor   Doctor    @relation(fields: [doctorId], references: [id])
   // patient being overseen, mapped to patientID 
-  patient       Patient  @relation(fields: [patientId], references: [id]) 
+  patient  Patient   @relation(fields: [patientId], references: [id])
+  messages Message[] // each patient assignment can have multiple messages
 }
 
 // Reading Table/Relation Creation
 model Reading {
   id        String      @id @default(uuid()) // PK + unique user id
   patientId String
-  date      DateTime  // date of the when the reading was taken
-  time      String    // time of when the reading was taken
+  date      DateTime // date of the when the reading was taken
+  time      String // time of when the reading was taken
   // this type is defined at the bottom of the file, 
   // enumarted the timings of the reading
-  type      ReadingType 
+  type      ReadingType
   level     Float
+  status    ReadingStatus
   // Nullable attribute, patient may not have record notes on the reading
-  notes     String?   
+  notes     String?
 
   // Relationships and forgein keys:
   // patient who recorded the reading, mapped to patientID
-  patient   Patient     @relation(fields: [patientId], references: [id]) 
+  patient Patient @relation(fields: [patientId], references: [id])
 }
+
+model Message {
+  id                  String     @id @default(uuid())
+  patientAssignmentId String // Links to PatientAssignment
+  senderId            String // Either doctorId or patientId
+  senderType          SenderType // DOCTOR or PATIENT
+  content             String
+  timestamp           DateTime   @default(now())
+  isRead              Boolean    @default(false)
+
+  // Relationship
+  patientAssignment PatientAssignment @relation(fields: [patientAssignmentId], references: [id])
+}
+
+// enumarating messaging sender type
+enum SenderType {
+  DOCTOR
+  PATIENT
+}
+
 // enumarting the 6 types of the readings we could have
 enum ReadingType {
   BEFORE_BREAKFAST
@@ -81,4 +103,11 @@ enum ReadingType {
   AFTER_LUNCH
   BEFORE_DINNER
   AFTER_DINNER
+}
+
+// enumarting status of patient glucose readings
+enum ReadingStatus {
+  NORMAL
+  HIGH
+  ELEVATED
 }
