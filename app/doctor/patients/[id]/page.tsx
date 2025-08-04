@@ -64,6 +64,7 @@ export default async function PatientDetailsPage({
 					time: true,
 					type: true,
 					level: true,
+					status: true,
 					notes: true,
 				},
 			},

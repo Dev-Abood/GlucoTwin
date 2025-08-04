@@ -30,7 +30,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { createGlucoseReading } from "../../actions";
+import calculateReadingStatus, { createGlucoseReading } from "../../actions";
 import ClientSideDateTime from "../../_components/client-side-date-time";
 import { useRouter } from "next/navigation";
 
@@ -133,11 +133,16 @@ export default function NewReadingForm() {
         String(dubaiDate.getMinutes()).padStart(2, "0");
 
       // Prepare reading data with patient ID
+      const status = calculateReadingStatus(
+        Number(values.glucoseLevel),
+        values.readingType
+      );
       const newReading = {
         date: formattedDate,
         time: formattedTime,
         type: values.readingType,
         level: values.glucoseLevel,
+        status,
         notes: values.notes || "",
       };
 

@@ -1,10 +1,10 @@
 "use client";
 
-// ===== React & Next.js =====
+// React & Next.js 
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
-// ===== UI Components =====
+// UI Components 
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// ===== Data Visualization =====
+// Data Visualization
 import {
   LineChart,
   Line,
@@ -28,10 +28,10 @@ import {
   Legend,
 } from "recharts";
 
-// ===== Icons =====
+// Icons 
 import { Bell } from "lucide-react";
 
-// ===== Types =====
+// Types 
 import { ReadingType } from "@prisma/client";
 import { GlucoseReading } from "@/lib/types";
 import { formatReadingType } from "../utils/patient-utils";

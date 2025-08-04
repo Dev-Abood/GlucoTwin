@@ -69,7 +69,7 @@ interface PatientReadingsTableProps {
 /**
  * Defines possible filter values for readings status
  */
-type StatusFilter = "all" | "normal" | "elevated" | "high";
+type StatusFilter = "all" | "NORMAL" | "ELEVATED" | "HIGH";
 
 /**
  * PatientReadingsTable Component
@@ -121,60 +121,6 @@ export default function PatientReadingsTable({
   };
 
   /**
-   * Determines the status category of a glucose reading based on its level and type
-   * @param {number} level - The glucose level in mg/dL
-   * @param {string} type - The type of reading (e.g., "before_breakfast")
-   * @returns {"normal" | "elevated" | "high"} The status category of the reading
-   *
-   * Thresholds:
-   * - Before meals:
-   *   - Normal: ≤ 95 mg/dL
-   *   - Elevated: 96-105 mg/dL
-   *   - High: > 105 mg/dL
-   * - After meals:
-   *   - Normal: ≤ 140 mg/dL
-   *   - Elevated: 141-160 mg/dL
-   *   - High: > 160 mg/dL
-   */
-  const getReadingStatus = (
-    level: number,
-    type: string
-  ): "normal" | "elevated" | "high" => {
-    const isBeforeMeal = type.toLowerCase().includes("before");
-
-    if (isBeforeMeal) {
-      if (level <= 95) return "normal";
-      if (level <= 105) return "elevated";
-      return "high";
-    } else {
-      if (level <= 140) return "normal";
-      if (level <= 160) return "elevated";
-      return "high";
-    }
-  };
-
-  /**
-   * Generates a styled badge component based on reading status
-   * @param {number} level - The glucose level in mg/dL
-   * @param {string} type - The type of reading
-   * @returns {React.JSX.Element} A Badge component with appropriate styling
-   */
-  const getStatusBadge = (level: number, type: string): React.JSX.Element => {
-    const status = getReadingStatus(level, type);
-
-    switch (status) {
-      case "normal":
-        return <Badge variant="outline">Normal</Badge>;
-      case "elevated":
-        return <Badge variant="secondary">Elevated</Badge>;
-      case "high":
-        return <Badge variant="destructive">High</Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
-    }
-  };
-
-  /**
    * Navigates to the edit page for a specific reading
    * @param {string} id - The ID of the reading to edit
    */
@@ -219,6 +165,31 @@ export default function PatientReadingsTable({
   };
 
   /**
+   * Generates a styled badge component based on reading status
+   * @param {number} level - The glucose level in mg/dL
+   * @param {string} type - The type of reading
+   * @returns {React.JSX.Element} A Badge component with appropriate styling
+   */
+  const getStatusBadge = (status: string): React.JSX.Element => {
+    switch (
+      status // ← Use status directly
+    ) {
+      case "NORMAL":
+        return <Badge variant="outline">Normal</Badge>;
+      case "ELEVATED":
+        return <Badge variant="secondary">Elevated</Badge>;
+      case "HIGH":
+        return <Badge variant="destructive">High</Badge>;
+      default:
+        return <Badge variant="outline">Unknown</Badge>;
+    }
+  };
+
+  /**
+   * Memoized filtered readings based on current search term and filters
+   * @type {GlucoseReading[]}
+   */
+  /**
    * Memoized filtered readings based on current search term and filters
    * @type {GlucoseReading[]}
    */
@@ -227,7 +198,10 @@ export default function PatientReadingsTable({
       // Prepare data for filtering
       const formattedDate = formatDate(reading.date);
       const displayType = formatReadingType(reading.type as ReadingType);
-      const status = getReadingStatus(reading.level, displayType);
+      const status = reading.status;
+
+      // Convert status to display format for searching
+      const displayStatus = status.toLowerCase();
 
       // Search term matching (case-insensitive)
       const searchLower = searchTerm.toLowerCase();
@@ -237,6 +211,7 @@ export default function PatientReadingsTable({
         reading.level.toString().includes(searchTerm) ||
         formattedDate.includes(searchTerm) ||
         reading.time.toLowerCase().includes(searchLower) ||
+        displayStatus.includes(searchLower) || // Add this line for status search
         (reading.notes && reading.notes.toLowerCase().includes(searchLower));
 
       // Filter matching
@@ -258,7 +233,6 @@ export default function PatientReadingsTable({
       label: formatReadingType(type),
     }));
   }, []);
-
   return (
     <div className="flex min-h-screen flex-col">
       {/* Application Header */}
@@ -328,9 +302,9 @@ export default function PatientReadingsTable({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Statuses</SelectItem>
-                        <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="elevated">Elevated</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="NORMAL">Normal</SelectItem>
+                        <SelectItem value="ELEVATED">Elevated</SelectItem>
+                        <SelectItem value="HIGH">High</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -381,10 +355,7 @@ export default function PatientReadingsTable({
                               </TableCell>
                               <TableCell>{reading.level}</TableCell>
                               <TableCell>
-                                {getStatusBadge(
-                                  reading.level,
-                                  formatReadingType(reading.type as ReadingType)
-                                )}
+                                {getStatusBadge(reading.status)}
                               </TableCell>
                               <TableCell>
                                 {reading.notes ? (

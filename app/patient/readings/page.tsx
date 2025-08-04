@@ -22,6 +22,7 @@ export default async function ReadingsPage() {
 					time: true,
 					type: true,
 					level: true,
+					status: true,
 					notes: true,
 				},
 			},

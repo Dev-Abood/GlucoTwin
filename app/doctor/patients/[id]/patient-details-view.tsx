@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
 import {
   LineChart,
@@ -36,7 +37,6 @@ import {
 import { format } from "date-fns";
 import Header from "@/components/header";
 import Sidebar from "@/components/sidebar";
-import { date } from "zod";
 
 //* Type for the patient reading
 type Reading = {
@@ -45,18 +45,19 @@ type Reading = {
   time: string;
   type: string;
   level: number;
+  status: string;
   notes?: string | null;
 };
 
-//* Type for the daily readings grouped format
+//* Type for the daily readings grouped format with status
 type DayReadings = {
   date: string;
-  BeforeBreakfast: number | null;
-  AfterBreakfast: number | null;
-  BeforeLunch: number | null;
-  AfterLunch: number | null;
-  BeforeDinner: number | null;
-  AfterDinner: number | null;
+  BeforeBreakfast: { level: number; status: string } | null;
+  AfterBreakfast: { level: number; status: string } | null;
+  BeforeLunch: { level: number; status: string } | null;
+  AfterLunch: { level: number; status: string } | null;
+  BeforeDinner: { level: number; status: string } | null;
+  AfterDinner: { level: number; status: string } | null;
 };
 
 //* Type for the chart data format
@@ -94,25 +95,23 @@ interface PatientDetailsViewProps {
 export default function PatientDetailsView({
   patientData,
   lastVisit,
-}: //! Promise from the defined interface
-PatientDetailsViewProps) {
+}: PatientDetailsViewProps) {
   const router = useRouter(); // next.js router for navigation
 
   //* state saving the daily readings from the patient
   const [readingsByDate, setReadingsByDate] = useState<DayReadings[]>([]);
   //* state saving and setting the data of the patient's reading visualizations
   const [chartData, setChartData] = useState<GlucoseChartData[]>([]);
-  // Preprocess readings when component mounts
 
-  console.log(patientData?.readings.length)
+  console.log(patientData?.readings.length);
+
   useEffect(() => {
     if (!patientData?.readings) return;
 
     const groupedReadings = patientData.readings.reduce(
       (acc: Record<string, DayReadings>, reading: Reading) => {
         //! format the date to string
-        // const dateStr = format(new Date(reading.date), "yyyy-MM-dd");
-        const dateStr = reading.date.toISOString().slice(0, 10)
+        const dateStr = reading.date.toISOString().slice(0, 10);
 
         if (!acc[dateStr]) {
           acc[dateStr] = {
@@ -126,82 +125,97 @@ PatientDetailsViewProps) {
           };
         }
 
-        //! switch statement for assigning the reading level to select reading type
+        // Create reading object with level and status
+        const readingData = {
+          level: reading.level,
+          status: reading.status,
+        };
+
+        //! switch statement for assigning the reading level and status to select reading type
         switch (reading.type) {
           case "BEFORE_BREAKFAST":
-            acc[dateStr].BeforeBreakfast = reading.level;
+            acc[dateStr].BeforeBreakfast = readingData;
             break;
           case "AFTER_BREAKFAST":
-            acc[dateStr].AfterBreakfast = reading.level;
+            acc[dateStr].AfterBreakfast = readingData;
             break;
           case "BEFORE_LUNCH":
-            acc[dateStr].BeforeLunch = reading.level;
+            acc[dateStr].BeforeLunch = readingData;
             break;
           case "AFTER_LUNCH":
-            acc[dateStr].AfterLunch = reading.level;
+            acc[dateStr].AfterLunch = readingData;
             break;
           case "BEFORE_DINNER":
-            acc[dateStr].BeforeDinner = reading.level;
+            acc[dateStr].BeforeDinner = readingData;
             break;
           case "AFTER_DINNER":
-            acc[dateStr].AfterDinner = reading.level;
+            acc[dateStr].AfterDinner = readingData;
             break;
           default:
             //! handle error of not having a defined reading type
-            Error("Reading type not defined");
+            console.error("Reading type not defined:", reading.type);
         }
 
         return acc;
       },
       {}
     );
-    console.log("Here! Grouped:  ", groupedReadings)
+
+    console.log("Here! Grouped:  ", groupedReadings);
+    
     // Convert to array and sort by date (newest first)
     const sortedReadings = Object.values(groupedReadings).sort((a, b) => {
       //* Get the date difference
       return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
-    console.log("Here Sorted!:  ", sortedReadings.length)
+    
+    console.log("Here Sorted!:  ", sortedReadings.length);
     setReadingsByDate(sortedReadings);
 
     //! Create chart data for last 7 days
     const last7Days = sortedReadings.slice(0, 7).reverse();
     const chartFormatData = last7Days.map((day) => ({
       date: format(new Date(day.date), "MM/dd"),
-      fasting: day.BeforeBreakfast,
-      afterBreakfast: day.AfterBreakfast,
-      afterLunch: day.AfterLunch,
-      afterDinner: day.AfterDinner,
+      fasting: day.BeforeBreakfast?.level || null,
+      afterBreakfast: day.AfterBreakfast?.level || null,
+      afterLunch: day.AfterLunch?.level || null,
+      afterDinner: day.AfterDinner?.level || null,
     }));
 
     setChartData(chartFormatData);
   }, [patientData]);
 
-
-  // returning "high" at the first high reading found.
-  const determinePatientStatus = (): "unknown" | "normal" | "elevated" | "high" => {
+  // Determine patient status based on reading statuses from database
+  const determinePatientStatus = (): "NORMAL" | "ELEVATED" | "HIGH" | "unknown" => {
     const readings = patientData?.readings;
     if (!readings || readings.length === 0) {
       return "unknown";
     }
 
+    // Check all readings and determine the highest priority status
+    let hasHigh = false;
     let hasElevated = false;
 
-    for (const r of readings) {
-      const isBeforeMeal = r.type.toUpperCase().includes("BEFORE");
-      const highThreshold     = isBeforeMeal ? 105 : 160;
-      const elevatedThreshold = isBeforeMeal ? 95  : 140;
-
-      if (r.level > highThreshold) {
-        return "high";
-      } else if (r.level > elevatedThreshold) {
+    for (const reading of readings) {
+      const status = reading.status.toUpperCase();
+      
+      if (status === "HIGH") {
+        hasHigh = true;
+        break; // HIGH is highest priority, exit early
+      } else if (status === "ELEVATED") {
         hasElevated = true;
       }
     }
 
-    return hasElevated ? "elevated" : "normal";
+    // Return status based on priority: HIGH > ELEVATED > NORMAL
+    if (hasHigh) {
+      return "HIGH";
+    } else if (hasElevated) {
+      return "ELEVATED";
+    } else {
+      return "NORMAL";
+    }
   };
-
 
   const patientStatus = determinePatientStatus();
 
@@ -209,16 +223,53 @@ PatientDetailsViewProps) {
     return format(new Date(date), "MMM d, yyyy");
   };
 
-   // helper to apply text color based on glucose thresholds for before/after readings
-   const getReadingClass = (value: number | null, slot: keyof DayReadings) => {
-    if (value === null) return "";
-    const isBefore = slot.startsWith("Before");
-    const highThreshold = isBefore ? 105 : 160;
-    const elevatedThreshold = isBefore ? 95 : 140;
+  // Get status badge component
+  const getStatusBadge = (status: string) => {
+    switch (status.toUpperCase()) {
+      case "NORMAL":
+        return <Badge variant="outline">Normal</Badge>;
+      case "ELEVATED":
+        return <Badge variant="secondary">Elevated</Badge>;
+      case "HIGH":
+        return <Badge variant="destructive">High</Badge>;
+      default:
+        return <Badge variant="outline">Unknown</Badge>;
+    }
+  };
 
-    if (value > highThreshold) return "text-red-500 font-medium";
-    if (value > elevatedThreshold) return "text-amber-600 font-medium";
-    return "";
+  // Helper to apply text color and styling based on reading status from database
+  const getReadingClass = (readingData: { level: number; status: string } | null) => {
+    if (!readingData) return "";
+    
+    const status = readingData.status.toUpperCase();
+    switch (status) {
+      case "HIGH":
+        return "text-red-500 font-medium";
+      case "ELEVATED":
+        return "text-amber-600 font-medium";
+      case "NORMAL":
+        return "text-green-600";
+      default:
+        return "";
+    }
+  };
+
+  // Helper to render reading cell with proper styling
+  const renderReadingCell = (readingData: { level: number; status: string } | null) => {
+    if (!readingData) {
+      return <span className="text-muted-foreground">-</span>;
+    }
+
+    return (
+      <div className="flex flex-col items-center">
+        <span className={getReadingClass(readingData)}>
+          {readingData.level.toFixed(2)}
+        </span>
+        <div className="mt-1">
+          {getStatusBadge(readingData.status)}
+        </div>
+      </div>
+    );
   };
 
   if (!patientData) {
@@ -235,216 +286,138 @@ PatientDetailsViewProps) {
   }
   
   return (
-      <div className="flex min-h-screen flex-col">
-        {/* Header section */}
-        <Header />
-  
-        {/* Main content area */}
-        <div className="flex flex-1">
-          {/* Sidebar Navigation */}
-          <Sidebar userType="doctor" />
-  
-          <main className="flex-1 overflow-auto">
-            <div className="container py-6">
-              <div className="mb-6 flex items-center">
-                <Link href="/doctor/patients" className="mr-4">
-                  <Button variant="outline" size="sm">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Patients
-                  </Button>
-                </Link>
-                <h1 className="text-3xl font-bold">Patient Details</h1>
-              </div>
-  
-              <Card className="mb-6">
+    <div className="flex min-h-screen flex-col">
+      {/* Header section */}
+      <Header />
+
+      {/* Main content area */}
+      <div className="flex flex-1">
+        {/* Sidebar Navigation */}
+        <Sidebar userType="doctor" />
+
+        <main className="flex-1 overflow-auto">
+          <div className="container py-6">
+            <div className="mb-6 flex items-center">
+              <Link href="/doctor/patients" className="mr-4">
+                <Button variant="outline" size="sm">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to Patients
+                </Button>
+              </Link>
+              <h1 className="text-3xl font-bold">Patient Details</h1>
+            </div>
+
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Glucose Readings History</CardTitle>
+                <CardDescription>
+                  All recorded readings for {patientData.name}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {readingsByDate.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No readings available
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead rowSpan={2}>Day</TableHead>
+                          <TableHead rowSpan={2}>Date</TableHead>
+                          <TableHead colSpan={2} className="text-center border-b">
+                            Morning
+                          </TableHead>
+                          <TableHead colSpan={2} className="text-center border-b">
+                            Afternoon
+                          </TableHead>
+                          <TableHead colSpan={2} className="text-center border-b">
+                            Evening
+                          </TableHead>
+                        </TableRow>
+                        <TableRow>
+                          <TableHead className="text-center">Before Breakfast</TableHead>
+                          <TableHead className="text-center">After Breakfast</TableHead>
+                          <TableHead className="text-center">Before Lunch</TableHead>
+                          <TableHead className="text-center">After Lunch</TableHead>
+                          <TableHead className="text-center">Before Dinner</TableHead>
+                          <TableHead className="text-center">After Dinner</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {readingsByDate.map((dayReadings) => (
+                          <TableRow key={dayReadings.date}>
+                            <TableCell className="font-medium">
+                              {format(new Date(dayReadings.date), "EEEE")}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {format(new Date(dayReadings.date), "MMM d, yyyy")}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {renderReadingCell(dayReadings.BeforeBreakfast)}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {renderReadingCell(dayReadings.AfterBreakfast)}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {renderReadingCell(dayReadings.BeforeLunch)}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {renderReadingCell(dayReadings.AfterLunch)}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {renderReadingCell(dayReadings.BeforeDinner)}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {renderReadingCell(dayReadings.AfterDinner)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-6 lg:grid-cols-2 mb-8">
+              <Card>
                 <CardHeader>
-                  <CardTitle>Glucose Readings History</CardTitle>
+                  <CardTitle>Patient Information</CardTitle>
                   <CardDescription>
-                    All recorded readings for {patientData.name}
+                    {patientData.name} - {patientData.age} years old
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  {readingsByDate.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No readings available
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm font-medium">Patient ID</p>
+                      <p className="text-lg">{patientData.patientId}</p>
                     </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead rowSpan={2}>Day</TableHead>
-                            <TableHead rowSpan={2}>Date</TableHead>
-                            <TableHead colSpan={2} className="text-center border-b">
-                              Morning
-                            </TableHead>
-                            <TableHead colSpan={2} className="text-center border-b">
-                              Afternoon
-                            </TableHead>
-                            <TableHead colSpan={2} className="text-center border-b">
-                              Evening
-                            </TableHead>
-                          </TableRow>
-                          <TableRow>
-                            <TableHead className="text-center">Before Breakfast</TableHead>
-                            <TableHead className="text-center">After Breakfast</TableHead>
-                            <TableHead className="text-center">Before Lunch</TableHead>
-                            <TableHead className="text-center">After Lunch</TableHead>
-                            <TableHead className="text-center">Before Dinner</TableHead>
-                            <TableHead className="text-center">After Dinner</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {readingsByDate.map((dayReadings) => (
-                            <TableRow key={dayReadings.date}>
-                              <TableCell className="font-medium">
-                                {format(new Date(dayReadings.date), "EEEE")}
-                              </TableCell>
-                              <TableCell className="font-medium">
-                                {format(new Date(dayReadings.date), "MMM d, yyyy")}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {dayReadings.BeforeBreakfast !== null ? (
-                                  <span
-                                    className={getReadingClass(
-                                      dayReadings.BeforeBreakfast,
-                                      "BeforeBreakfast"
-                                    )}
-                                  >
-                                    {dayReadings.BeforeBreakfast.toFixed(2)}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {dayReadings.AfterBreakfast !== null ? (
-                                  <span
-                                    className={getReadingClass(
-                                      dayReadings.AfterBreakfast,
-                                      "AfterBreakfast"
-                                    )}
-                                  >
-                                    {dayReadings.AfterBreakfast.toFixed(2)}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {dayReadings.BeforeLunch !== null ? (
-                                  <span
-                                    className={getReadingClass(
-                                      dayReadings.BeforeLunch,
-                                      "BeforeLunch"
-                                    )}
-                                  >
-                                    {dayReadings.BeforeLunch.toFixed(2)}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {dayReadings.AfterLunch !== null ? (
-                                  <span
-                                    className={getReadingClass(
-                                      dayReadings.AfterLunch,
-                                      "AfterLunch"
-                                    )}
-                                  >
-                                    {dayReadings.AfterLunch.toFixed(2)}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {dayReadings.BeforeDinner !== null ? (
-                                  <span
-                                    className={getReadingClass(
-                                      dayReadings.BeforeDinner,
-                                      "BeforeDinner"
-                                    )}
-                                  >
-                                    {dayReadings.BeforeDinner.toFixed(2)}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {dayReadings.AfterDinner !== null ? (
-                                  <span
-                                    className={getReadingClass(
-                                      dayReadings.AfterDinner,
-                                      "AfterDinner"
-                                    )}
-                                  >
-                                    {dayReadings.AfterDinner.toFixed(2)}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                    <div>
+                      <p className="text-sm font-medium">Date of Birth</p>
+                      <p className="text-lg">
+                        {formatDate(patientData.dateOfBirth)}
+                      </p>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-  
-              <div className="grid gap-6 lg:grid-cols-2 mb-8">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Patient Information</CardTitle>
-                    <CardDescription>
-                      {patientData.name} - {patientData.age} years old
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm font-medium">Patient ID</p>
-                        <p className="text-lg">{patientData.patientId}</p>
+                    <div>
+                      <p className="text-sm font-medium">Term</p>
+                      <p className="text-lg">{patientData.term} weeks</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Due Date</p>
+                      <p className="text-lg">
+                        {formatDate(patientData.dueDate)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Status</p>
+                      <div className="mt-1">
+                        {getStatusBadge(patientStatus)}
                       </div>
-                      <div>
-                        <p className="text-sm font-medium">Date of Birth</p>
-                        <p className="text-lg">
-                          {formatDate(patientData.dateOfBirth)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Term</p>
-                        <p className="text-lg">{patientData.term} weeks</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Due Date</p>
-                        <p className="text-lg">
-                          {formatDate(patientData.dueDate)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Status</p>
-                        <p
-                          className={`text-lg font-medium ${
-                            patientStatus === "normal"
-                              ? "text-green-600"
-                              : patientStatus === "elevated"
-                              ? "text-amber-600"
-                              : patientStatus === "high"
-                              ? "text-red-600"
-                              : ""
-                          }`}
-                        >
-                          {patientStatus.charAt(0).toUpperCase() +
-                            patientStatus.slice(1)}
-                        </p>
-                      </div>
-                      <div>
-  
+                    </div>
+                    <div>
                       <p className="text-sm font-medium">Last Visit</p>
                       <p className="text-lg">
                         {lastVisit

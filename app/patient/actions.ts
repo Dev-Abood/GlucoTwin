@@ -92,7 +92,8 @@ export async function deleteReading(id: string): Promise<ActionResult> {
 	}
 }
 
-// Schema for validating the incoming glucose reading data
+
+// Schema for validating the incoming glucose reading data (WITHOUT status)
 const glucoseReadingSchema = z.object({
 	date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // YYYY-MM-DD format
 	time: z.string().regex(/^\d{2}:\d{2}$/), // HH:MM format
@@ -107,6 +108,23 @@ const glucoseReadingSchema = z.object({
 	level: z.number().positive().multipleOf(0.01), // Number with up to 2 decimal places
 	notes: z.string(),
 });
+
+// Function to calculate reading status based on level and type
+const calculateReadingStatus = (level: number, type: string): "NORMAL" | "ELEVATED" | "HIGH" => {
+	const isBeforeMeal = type.toLowerCase().includes("before");
+	
+	if (isBeforeMeal) {
+		if (level <= 95) return "NORMAL";
+		if (level <= 105) return "ELEVATED";
+		return "HIGH";
+	} else {
+		if (level <= 140) return "NORMAL";
+		if (level <= 160) return "ELEVATED";
+		return "HIGH";
+	}
+};
+
+export default calculateReadingStatus
 
 // Type for glucose reading inputs derived from the schema
 type GlucoseReadingInput = z.infer<typeof glucoseReadingSchema>;
@@ -134,8 +152,13 @@ export async function createGlucoseReading(
 
 		// Validate input data against schema
 		const validatedData = glucoseReadingSchema.parse(data);
+		
+		// Calculate status based on level and type
+		const status = calculateReadingStatus(validatedData.level, validatedData.type);
 
-		// Example database operation with Prisma
+		console.log({ ...validatedData, status });
+
+		// Create the reading in database
 		await prisma.reading.create({
 			data: {
 				patientId: userId,
@@ -143,6 +166,7 @@ export async function createGlucoseReading(
 				time: validatedData.time,
 				type: validatedData.type,
 				level: validatedData.level,
+				status: status,
 				notes: validatedData.notes,
 			},
 		});

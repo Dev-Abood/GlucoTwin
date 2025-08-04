@@ -9,12 +9,12 @@ import { useToast } from "@/hooks/use-toast";
 
 import { Button } from "@/components/ui/button";
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardFooter,
-	CardHeader,
-	CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,14 +22,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import {
-	Form,
-	FormControl,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
-import { updateGlucoseReading } from "../../../actions";
+import calculateReadingStatus, { updateGlucoseReading } from "../../../actions";
 import { useRouter } from "next/navigation";
 
 /**
@@ -40,43 +40,43 @@ import { useRouter } from "next/navigation";
  * - Notes are optional
  */
 const formSchema = z.object({
-	readingType: z.enum([
-		"BEFORE_BREAKFAST",
-		"AFTER_BREAKFAST",
-		"BEFORE_LUNCH",
-		"AFTER_LUNCH",
-		"BEFORE_DINNER",
-		"AFTER_DINNER",
-	]),
-	glucoseLevel: z
-		.string()
-		.refine(
-			// Ensures value is a valid number with max 2 decimal places
-			(val) => /^\d{1,3}(\.\d{0,2})?$/.test(val),
-			{
-				message:
-					"Enter a valid number with up to 2 decimal places (e.g., 95.75)",
-			},
-		)
-		.transform((val) => parseFloat(parseFloat(val).toFixed(2))), // Convert to number with 2 decimal places
-	notes: z.string().optional(),
+  readingType: z.enum([
+    "BEFORE_BREAKFAST",
+    "AFTER_BREAKFAST",
+    "BEFORE_LUNCH",
+    "AFTER_LUNCH",
+    "BEFORE_DINNER",
+    "AFTER_DINNER",
+  ]),
+  glucoseLevel: z
+    .string()
+    .refine(
+      // Ensures value is a valid number with max 2 decimal places
+      (val) => /^\d{1,3}(\.\d{0,2})?$/.test(val),
+      {
+        message:
+          "Enter a valid number with up to 2 decimal places (e.g., 95.75)",
+      }
+    )
+    .transform((val) => parseFloat(parseFloat(val).toFixed(2))), // Convert to number with 2 decimal places
+  notes: z.string().optional(),
 });
 
 // Define reading type for the component props
 type Reading = {
-	id: string;
-	patientId: string;
-	date: Date;
-	time: string;
-	type:
-		| "BEFORE_BREAKFAST"
-		| "AFTER_BREAKFAST"
-		| "BEFORE_LUNCH"
-		| "AFTER_LUNCH"
-		| "BEFORE_DINNER"
-		| "AFTER_DINNER";
-	level: number;
-	notes: string | null;
+  id: string;
+  patientId: string;
+  date: Date;
+  time: string;
+  type:
+    | "BEFORE_BREAKFAST"
+    | "AFTER_BREAKFAST"
+    | "BEFORE_LUNCH"
+    | "AFTER_LUNCH"
+    | "BEFORE_DINNER"
+    | "AFTER_DINNER";
+  level: number;
+  notes: string | null;
 };
 
 /**
@@ -84,232 +84,237 @@ type Reading = {
  * A form to edit existing glucose readings
  */
 export default function EditReadingForm({ reading }: { reading: Reading }) {
-	const router = useRouter();
-	const { toast } = useToast();
-	const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-	// Type options for glucose readings
-	const typeOptions = [
-		{
-			id: "before-breakfast",
-			label: "Before Breakfast",
-			value: "BEFORE_BREAKFAST",
-		},
-		{
-			id: "after-breakfast",
-			label: "After Breakfast",
-			value: "AFTER_BREAKFAST",
-		},
-		{ id: "before-lunch", label: "Before Lunch", value: "BEFORE_LUNCH" },
-		{ id: "after-lunch", label: "After Lunch", value: "AFTER_LUNCH" },
-		{ id: "before-dinner", label: "Before Dinner", value: "BEFORE_DINNER" },
-		{ id: "after-dinner", label: "After Dinner", value: "AFTER_DINNER" },
-	];
+  // Type options for glucose readings
+  const typeOptions = [
+    {
+      id: "before-breakfast",
+      label: "Before Breakfast",
+      value: "BEFORE_BREAKFAST",
+    },
+    {
+      id: "after-breakfast",
+      label: "After Breakfast",
+      value: "AFTER_BREAKFAST",
+    },
+    { id: "before-lunch", label: "Before Lunch", value: "BEFORE_LUNCH" },
+    { id: "after-lunch", label: "After Lunch", value: "AFTER_LUNCH" },
+    { id: "before-dinner", label: "Before Dinner", value: "BEFORE_DINNER" },
+    { id: "after-dinner", label: "After Dinner", value: "AFTER_DINNER" },
+  ];
 
-	// Format date from the reading object
-	const readingDate = new Date(reading.date);
-	const formattedDate = readingDate.toISOString().split("T")[0]; // YYYY-MM-DD format
+  // Format date from the reading object
+  const readingDate = new Date(reading.date);
+  const formattedDate = readingDate.toISOString().split("T")[0]; // YYYY-MM-DD format
 
-	// Define the form input values type (before transformation)
-	type FormInputValues = {
-		readingType: Reading["type"];
-		glucoseLevel: string; // String for input
-		notes: string;
-	};
+  // Define the form input values type (before transformation)
+  type FormInputValues = {
+    readingType: Reading["type"];
+    glucoseLevel: string; // String for input
+    notes: string;
+  };
 
-	// Use this type for the form
-	const form = useForm<FormInputValues>({
-		resolver: zodResolver(formSchema),
-		defaultValues: {
-			readingType: reading.type,
-			glucoseLevel: reading.level.toString(), // Now this is correctly a string
-			notes: reading.notes || "",
-		},
-	});
+  // Use this type for the form
+  const form = useForm<FormInputValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      readingType: reading.type,
+      glucoseLevel: reading.level.toString(), // Now this is correctly a string
+      notes: reading.notes || "",
+    },
+  });
 
-	/**
-	 * Form submission handler
-	 * Validates inputs and sends data to the server
-	 */
-	// Update the onSubmit function to accept FormInputValues
-	const onSubmit = async (values: FormInputValues) => {
-		try {
-			setIsSubmitting(true);
+  /**
+   * Form submission handler
+   * Validates inputs and sends data to the server
+   */
+  // Update the onSubmit function to accept FormInputValues
+  const onSubmit = async (values: FormInputValues) => {
+    try {
+      setIsSubmitting(true);
 
-			// Prepare updated reading data
-			const updatedReading = {
-				id: reading.id,
-				date: formattedDate,
-				time: reading.time,
-				type: values.readingType,
-				level: parseFloat(parseFloat(values.glucoseLevel).toFixed(2)), // Manually convert string to number here
-				notes: values.notes || "",
-			};
+      // Prepare updated reading data
+      const status = calculateReadingStatus(
+        Number(values.glucoseLevel),
+        values.readingType
+      );
+      const updatedReading = {
+        id: reading.id,
+        date: formattedDate,
+        time: reading.time,
+        type: values.readingType,
+        level: parseFloat(parseFloat(values.glucoseLevel).toFixed(2)), // Manually convert string to number here
+        status,
+        notes: values.notes || "",
+      };
 
-			// Submit to server action
-			const result = await updateGlucoseReading(updatedReading);
+      // Submit to server action
+      const result = await updateGlucoseReading(updatedReading);
 
-			if (result.success) {
-				toast({
-					title: "Success",
-					description: "Reading updated successfully",
-				});
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Reading updated successfully",
+        });
 
-				// Redirect to readings page
-				router.push("/patient/readings");
-			} else {
-				throw new Error(result.error || "Failed to update reading");
-			}
-		} catch (error: any) {
-			toast({
-				title: "Error",
-				description: error.message || "Failed to update reading",
-				variant: "destructive",
-			});
-			console.error("Error updating reading:", error);
-		} finally {
-			setIsSubmitting(false);
-		}
-	};
+        // Redirect to readings page
+        router.push("/patient/readings");
+      } else {
+        throw new Error(result.error || "Failed to update reading");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update reading",
+        variant: "destructive",
+      });
+      console.error("Error updating reading:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-	return (
-		<div className="container max-w-md py-10">
-			{/* Back navigation link */}
-			<div className="mb-6">
-				<Link
-					href="/patient/readings"
-					className="inline-flex items-center text-sm font-medium"
-				>
-					<ArrowLeft className="mr-2 h-4 w-4" />
-					Back to Readings
-				</Link>
-			</div>
+  return (
+    <div className="container max-w-md py-10">
+      {/* Back navigation link */}
+      <div className="mb-6">
+        <Link
+          href="/patient/readings"
+          className="inline-flex items-center text-sm font-medium"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Readings
+        </Link>
+      </div>
 
-			<Card>
-				<CardHeader>
-					<CardTitle>Edit Glucose Reading</CardTitle>
-					<CardDescription>
-						Update your glucose measurement details
-					</CardDescription>
-				</CardHeader>
+      <Card>
+        <CardHeader>
+          <CardTitle>Edit Glucose Reading</CardTitle>
+          <CardDescription>
+            Update your glucose measurement details
+          </CardDescription>
+        </CardHeader>
 
-				{/* Form with Zod validation */}
-				<Form {...form}>
-					<form onSubmit={form.handleSubmit(onSubmit)}>
-						<CardContent className="space-y-6">
-							{/* Reading Type Selection */}
-							<FormField
-								control={form.control}
-								name="readingType"
-								render={({ field }) => (
-									<FormItem className="space-y-2">
-										<FormLabel>When did you take this reading?</FormLabel>
-										<FormControl>
-											<RadioGroup
-												onValueChange={field.onChange}
-												defaultValue={field.value}
-												className="grid gap-2"
-											>
-												{typeOptions.map((option) => (
-													<Label
-														key={option.id}
-														htmlFor={option.id}
-														className="flex cursor-pointer items-center justify-between rounded-md border p-4 [&:has(:checked)]:bg-primary/10"
-													>
-														<div className="space-y-1">
-															<p>{option.label}</p>
-														</div>
-														<RadioGroupItem
-															id={option.id}
-															value={option.value}
-														/>
-													</Label>
-												))}
-											</RadioGroup>
-										</FormControl>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
+        {/* Form with Zod validation */}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <CardContent className="space-y-6">
+              {/* Reading Type Selection */}
+              <FormField
+                control={form.control}
+                name="readingType"
+                render={({ field }) => (
+                  <FormItem className="space-y-2">
+                    <FormLabel>When did you take this reading?</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="grid gap-2"
+                      >
+                        {typeOptions.map((option) => (
+                          <Label
+                            key={option.id}
+                            htmlFor={option.id}
+                            className="flex cursor-pointer items-center justify-between rounded-md border p-4 [&:has(:checked)]:bg-primary/10"
+                          >
+                            <div className="space-y-1">
+                              <p>{option.label}</p>
+                            </div>
+                            <RadioGroupItem
+                              id={option.id}
+                              value={option.value}
+                            />
+                          </Label>
+                        ))}
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-							{/* Glucose Level Input */}
-							<FormField
-								control={form.control}
-								name="glucoseLevel"
-								render={({ field }) => (
-									<FormItem className="space-y-2">
-										<FormLabel>Glucose Level (mg/dL)</FormLabel>
-										<FormControl>
-											<Input
-												placeholder="Enter your reading (e.g., 95.75)"
-												type="text"
-												inputMode="decimal"
-												{...field}
-												onChange={(e) => {
-													// Allow only numbers and up to 2 decimal places
-													const value = e.target.value;
-													if (
-														/^\d{0,3}(\.\d{0,2})?$/.test(value) ||
-														value === ""
-													) {
-														field.onChange(value);
-													}
-												}}
-											/>
-										</FormControl>
-										<p className="text-xs text-muted-foreground">
-											Enter a number with up to 2 decimal places
-										</p>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
+              {/* Glucose Level Input */}
+              <FormField
+                control={form.control}
+                name="glucoseLevel"
+                render={({ field }) => (
+                  <FormItem className="space-y-2">
+                    <FormLabel>Glucose Level (mg/dL)</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter your reading (e.g., 95.75)"
+                        type="text"
+                        inputMode="decimal"
+                        {...field}
+                        onChange={(e) => {
+                          // Allow only numbers and up to 2 decimal places
+                          const value = e.target.value;
+                          if (
+                            /^\d{0,3}(\.\d{0,2})?$/.test(value) ||
+                            value === ""
+                          ) {
+                            field.onChange(value);
+                          }
+                        }}
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      Enter a number with up to 2 decimal places
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-							{/* Date and Time Information - Read-only */}
-							<div className="space-y-2">
-								<Label>Date and Time</Label>
-								<div className="text-sm text-muted-foreground p-2 border rounded-md bg-muted/20">
-									{new Date(reading.date).toLocaleDateString()} at{" "}
-									{reading.time}
-								</div>
-							</div>
+              {/* Date and Time Information - Read-only */}
+              <div className="space-y-2">
+                <Label>Date and Time</Label>
+                <div className="text-sm text-muted-foreground p-2 border rounded-md bg-muted/20">
+                  {new Date(reading.date).toLocaleDateString()} at{" "}
+                  {reading.time}
+                </div>
+              </div>
 
-							{/* Notes Textarea */}
-							<FormField
-								control={form.control}
-								name="notes"
-								render={({ field }) => (
-									<FormItem className="space-y-2">
-										<FormLabel>Notes (Optional)</FormLabel>
-										<FormControl>
-											<Textarea
-												placeholder="Add any notes about this reading (e.g., what you ate, activity level, how you're feeling)"
-												className="resize-none"
-												{...field}
-											/>
-										</FormControl>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-						</CardContent>
+              {/* Notes Textarea */}
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem className="space-y-2">
+                    <FormLabel>Notes (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Add any notes about this reading (e.g., what you ate, activity level, how you're feeling)"
+                        className="resize-none"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
 
-						{/* Submit Button */}
-						<CardFooter>
-							<Button type="submit" className="w-full" disabled={isSubmitting}>
-								{isSubmitting ? (
-									<>
-										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-										Updating...
-									</>
-								) : (
-									"Update Reading"
-								)}
-							</Button>
-						</CardFooter>
-					</form>
-				</Form>
-			</Card>
-		</div>
-	);
+            {/* Submit Button */}
+            <CardFooter>
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  "Update Reading"
+                )}
+              </Button>
+            </CardFooter>
+          </form>
+        </Form>
+      </Card>
+    </div>
+  );
 }

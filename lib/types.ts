@@ -9,5 +9,6 @@ export interface GlucoseReading {
 	time: string;
 	type: ReadingType;
 	level: number;
+	status: string;
 	notes: string | null;
 }

@@ -67,7 +67,7 @@ model Reading {
   // enumarted the timings of the reading
   type      ReadingType
   level     Float
-  status    ReadingStatus
+  status    ReadingStatus @default(NORMAL)
   // Nullable attribute, patient may not have record notes on the reading
   notes     String?
 

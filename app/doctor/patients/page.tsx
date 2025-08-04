@@ -34,6 +34,7 @@ export default async function DoctorPatientsPage() {
 								select: {
 									level: true,
 									type: true,
+									status: true,
 								},
 							},
 						},
