@@ -51,9 +51,9 @@ model PatientAssignment {
 
   // Relationships and forgein keys:
   // doctor overseeing the patient, mapped to doctorID
-  doctor   Doctor    @relation(fields: [doctorId], references: [id])
+  doctor   Doctor    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   // patient being overseen, mapped to patientID 
-  patient  Patient   @relation(fields: [patientId], references: [id])
+  patient  Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
   messages Message[] // each patient assignment can have multiple messages
 }
 
@@ -73,7 +73,7 @@ model Reading {
 
   // Relationships and forgein keys:
   // patient who recorded the reading, mapped to patientID
-  patient Patient @relation(fields: [patientId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 }
 
 model Message {
@@ -86,7 +86,7 @@ model Message {
   isRead              Boolean    @default(false)
 
   // Relationship
-  patientAssignment PatientAssignment @relation(fields: [patientAssignmentId], references: [id])
+  patientAssignment PatientAssignment @relation(fields: [patientAssignmentId], references: [id], onDelete: Cascade)
 }
 
 // enumarating messaging sender type
