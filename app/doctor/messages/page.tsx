@@ -1,21 +1,20 @@
 // app/doctor/messages/page.tsx
 import { PrismaClient } from "@prisma/client";
 import { auth } from "@clerk/nextjs/server";
-import MessagesPageClient from "./MessagesPageClient";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
+import MessagesPage from "./MessagesPageClient";
 
 const prisma = new PrismaClient();
 
 export default async function Page() {
   const { userId } = await auth();
-
-  if (!userId) {
-    redirect("/sign-up");
-  }
+  if (!userId) redirect("/sign-up");
 
   const doctor = await prisma.doctor.findUnique({
     where: { id: userId },
     select: {
+      name: true,
+      id: true,
       patientAssignments: {
         select: {
           lastVisitDate: true,
@@ -25,7 +24,10 @@ export default async function Page() {
             select: {
               readings: {
                 select: { level: true, type: true, status: true },
-                orderBy: [{ date: "desc" }, { time: "desc" }],
+                orderBy: [
+                  { date: "desc" },
+                  { time: "desc" },
+                ],
                 take: 1,
               },
               id: true,
@@ -44,11 +46,8 @@ export default async function Page() {
     },
   });
 
-  if (!doctor) {
-    return <div>No patients found</div>;
-  }
+  if (!doctor) return <div>No patients found</div>;
 
-  // Transform raw Prisma result to PatientWithAssignment[]
   const patients = doctor.patientAssignments.map((assignment) => {
     const patient = assignment.patient;
     return {
@@ -76,18 +75,5 @@ export default async function Page() {
     };
   });
 
-  const doctorName = await prisma.doctor.findUnique({
-    where: {
-      id: userId,
-    },
-    select: {
-      name: true,
-    },
-  });
-
-  if (!doctorName) {
-    return notFound();
-  }
-
-  return <MessagesPageClient doctorData={doctorName} patients={patients} />;
+  return <MessagesPage doctorData={{ id: doctor.id, name: doctor.name }} patients={patients} />;
 }

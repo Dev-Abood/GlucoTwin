@@ -1,24 +1,23 @@
-//TODO: Design messages panel
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { getMessages, sendMessageToPatient, markMessagesAsRead } from "./actions";
 import { ArrowLeft, Send, Search, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
 import Header from "@/components/header";
 import Sidebar from "@/components/sidebar";
 
-// interface types based on schema
 interface Patient {
   id: string;
   patientId: string;
@@ -56,83 +55,73 @@ interface PatientWithAssignment extends Patient {
 
 interface MessagesPageProps {
   doctorData: {
+    id: string;
     name: string;
   };
-  patients: PatientWithAssignment[]; // This will come from our database
+  patients: PatientWithAssignment[];
 }
 
+type StatusFilter = "all" | "NORMAL" | "ELEVATED" | "HIGH";
+type MessageFilter = "all" | "unread";
 
-
-const mockMessages: Message[] = [
-  {
-    id: "1",
-    patientAssignmentId: "assign1",
-    senderId: "1",
-    senderType: "PATIENT",
-    content:
-      "Good morning Dr. Abdulla. I recorded my morning glucose reading and it seems a bit high today.",
-    timestamp: new Date("2025-01-03T08:30:00"),
-    isRead: true,
-  },
-  {
-    id: "2",
-    patientAssignmentId: "assign1",
-    senderId: "doc1",
-    senderType: "DOCTOR",
-    content:
-      "Good morning Layla. I can see your reading of 151 mg/dL. Have you been following your meal plan as discussed?",
-    timestamp: new Date("2025-01-03T09:15:00"),
-    isRead: true,
-  },
-];
-
-export default function MessagesPage({
-  patients
-}: MessagesPageProps) {
+export default function MessagesPage({ patients, doctorData }: MessagesPageProps) {
   const router = useRouter();
-  const [selectedPatient, setSelectedPatient] =
-    useState<PatientWithAssignment | null>(null);
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
+  const [selectedPatient, setSelectedPatient] = useState<PatientWithAssignment | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState<StatusFilter>("all");
+  const [filterMessages, setFilterMessages] = useState<MessageFilter>("all");
 
-  const filteredPatients = patients.filter(
-    (patient) =>
-      patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.patientId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.status.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter patients by search and filters
+  const filteredPatients = patients.filter((patient) => {
+    const search = searchTerm.toLowerCase();
 
-  const sendMessage = () => {
-    if (!newMessage.trim() || !selectedPatient) return;
+    const matchesSearch =
+      patient.name.toLowerCase().includes(search) ||
+      patient.patientId.toLowerCase().includes(search) ||
+      patient.status.toLowerCase().includes(search);
 
-    const message: Message = {
-      id: Date.now().toString(),
-      patientAssignmentId: selectedPatient.assignment.id,
-      senderId: "doc1",
-      senderType: "DOCTOR",
-      content: newMessage.trim(),
-      timestamp: new Date(),
-      isRead: true,
-    };
+    const matchesStatus =
+      filterStatus === "all" || patient.status === filterStatus;
 
-    setMessages((prev) => [...prev, message]);
-    setNewMessage("");
+    const matchesMessages =
+      filterMessages === "all" || (filterMessages === "unread" && patient.hasMessage);
+
+    return matchesSearch && matchesStatus && matchesMessages;
+  });
+
+  // Select patient, fetch messages, mark as read
+  const handleSelectPatient = async (patient: PatientWithAssignment) => {
+    setSelectedPatient(patient);
+
+    // Mark messages as read (green dot disappears)
+    if (patient.hasMessage) {
+      await markMessagesAsRead(patient.id);
+      patient.hasMessage = false;
+    }
+
+    const msgs = await getMessages(patient.assignment.id);
+    if (!("error" in msgs)) setMessages(msgs);
   };
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString("en-US", {
+  // Send message and persist to DB
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedPatient) return;
+
+    const saved = await sendMessageToPatient(selectedPatient.assignment.id, newMessage);
+    if (!("error" in saved)) {
+      setMessages((prev) => [...prev, saved]);
+      setNewMessage("");
+    }
+  };
+
+  const formatTime = (date: Date) =>
+    new Date(date).toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
     });
-  };
-
-  const getPatientMessages = (patientAssignmentId: string) => {
-    return messages.filter(
-      (msg) => msg.patientAssignmentId === patientAssignmentId
-    );
-  };
 
   const handleBackToPatients = () => {
     router.push("/doctor/patients");
@@ -149,12 +138,12 @@ export default function MessagesPage({
     }
   };
 
-  // Patient Card Component for mapping
+  // Patient Card component
   const PatientCard = ({ patient }: { patient: PatientWithAssignment }) => (
     <div
       key={patient.id}
       className="bg-white border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-      onClick={() => setSelectedPatient(patient)}
+      onClick={() => handleSelectPatient(patient)}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
@@ -190,9 +179,7 @@ export default function MessagesPage({
         </div>
 
         <div className="flex items-center space-x-3">
-          {patient.hasMessage && (
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-          )}
+          {patient.hasMessage && <div className="w-3 h-3 bg-green-500 rounded-full"></div>}
           <Button variant="outline" size="sm">
             <MessageCircle className="h-4 w-4 mr-2" />
             Chat
@@ -202,37 +189,26 @@ export default function MessagesPage({
     </div>
   );
 
+  /* Chat View */
   if (selectedPatient) {
-    const patientMessages = getPatientMessages(selectedPatient.assignment.id);
+    const patientMessages = messages;
 
     return (
       <div className="flex min-h-screen flex-col">
-        {/* Header section */}
         <Header />
-        {/* Main content area */}
         <div className="flex flex-1">
-          {/* Sidebar Navigation */}
           <Sidebar userType="doctor" />
-          {/* Main Content */}
           <main className="flex-1 overflow-auto">
             <div className="flex flex-col h-[calc(100vh-4rem)]">
               {/* Chat Header */}
               <div className="bg-white border-b px-6 py-4">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedPatient(null)}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => setSelectedPatient(null)}>
                       <ArrowLeft className="h-4 w-4 mr-2" />
                       Back to Messages
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleBackToPatients}
-                    >
+                    <Button variant="outline" size="sm" onClick={handleBackToPatients}>
                       <ArrowLeft className="h-4 w-4 mr-2" />
                       Back to Patients
                     </Button>
@@ -248,9 +224,7 @@ export default function MessagesPage({
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <h1 className="text-xl font-semibold">
-                      {selectedPatient.name}
-                    </h1>
+                    <h1 className="text-xl font-semibold">{selectedPatient.name}</h1>
                     <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                       <span>ID: {selectedPatient.patientId}</span>
                       <span>•</span>
@@ -265,9 +239,7 @@ export default function MessagesPage({
                       {selectedPatient.lastReading && (
                         <>
                           <span>•</span>
-                          <span>
-                            Last: {selectedPatient.lastReading.level} mg/dL
-                          </span>
+                          <span>Last: {selectedPatient.lastReading.level} mg/dL</span>
                         </>
                       )}
                     </div>
@@ -287,9 +259,7 @@ export default function MessagesPage({
                   <div
                     key={message.id}
                     className={`flex ${
-                      message.senderType === "DOCTOR"
-                        ? "justify-end"
-                        : "justify-start"
+                      message.senderType === "DOCTOR" ? "justify-end" : "justify-start"
                     }`}
                   >
                     <div
@@ -336,64 +306,68 @@ export default function MessagesPage({
     );
   }
 
-  // Patient List View - Card Style
+  /* Patient List View */
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Header section */}
       <Header />
-      {/* Main content area */}
       <div className="flex flex-1">
-        {/* Sidebar Navigation */}
         <Sidebar userType="doctor" />
-        {/* Main Content */}
         <main className="flex-1 overflow-auto">
           <div className="container py-6">
-            <div className="mb-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-3xl font-bold">Messages</h1>
-                  <p className="text-muted-foreground">
-                    Chat with your gestational diabetes patients
-                  </p>
-                </div>
-                <Button variant="outline" onClick={handleBackToPatients}>
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Patients
-                </Button>
-              </div>
+            <div className="mb-6 flex items-center justify-between">
+              <h1 className="text-3xl font-bold">Messages</h1>
+              <Button variant="outline" onClick={handleBackToPatients}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Patients
+              </Button>
             </div>
 
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Patient Messages</CardTitle>
-                <CardDescription>
-                  Select a patient to start or continue a conversation
-                </CardDescription>
-                <div className="relative mt-2">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search patients..."
-                    className="pl-8"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {filteredPatients.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No patients found
-                    </div>
-                  ) : (
-                    // Mapping function for patient list - easy to replace with your database query
-                    filteredPatients.map((patient) => (
-                      <PatientCard key={patient.id} patient={patient} />
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            {/* Search + Filters */}
+            <div className="flex flex-col gap-4 sm:flex-row mb-4">
+              {/* Search Input */}
+              <div className="relative flex-1">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search patients..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+
+              {/* Status Filter */}
+              <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as StatusFilter)}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="NORMAL">Normal</SelectItem>
+                  <SelectItem value="ELEVATED">Elevated</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* New Message Filter */}
+              <Select value={filterMessages} onValueChange={(value) => setFilterMessages(value as MessageFilter)}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Filter by message" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Patients</SelectItem>
+                  <SelectItem value="unread">Unread Messages</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Patients List */}
+            <div className="space-y-3">
+              {filteredPatients.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">No patients found</div>
+              ) : (
+                filteredPatients.map((patient) => <PatientCard key={patient.id} patient={patient} />)
+              )}
+            </div>
           </div>
         </main>
       </div>
