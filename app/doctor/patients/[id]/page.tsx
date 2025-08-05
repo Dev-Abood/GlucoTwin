@@ -4,88 +4,71 @@ import { prisma } from "@/lib/prisma";
 import PatientDetailsView from "./patient-details-view";
 
 export default async function PatientDetailsPage({
-	params,
+  params,
 }: {
-	params: { id: string };
+  params: { id: string };
 }) {
-	const { userId } = await auth();
+  const { userId } = await auth();
 
-	if (!userId) {
-		redirect("/sign-up");
-	}
+  if (!userId) {
+    redirect("/sign-up");
+  }
 
-	// First get the doctor to verify they can access this patient
-	const doctor = await prisma.doctor.findUnique({
-		where: {
-			id: userId,
-		},
-		select: {
-			id: true,
-		},
-	});
+  // Verify the doctor exists
+  const doctor = await prisma.doctor.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  });
 
-	if (!doctor) {
-		return notFound();
-	}
+  if (!doctor) return notFound();
 
-	// Check if the patient is assigned to this doctor
-	const patientAssignment = await prisma.patientAssignment.findFirst({
-		where: {
-			doctorId: doctor.id,
-			patientId: params.id,
-		},
-	});
+  // Verify patient is assigned to this doctor
+  const patientAssignment = await prisma.patientAssignment.findFirst({
+    where: {
+      doctorId: doctor.id,
+      patientId: params.id,
+    },
+  });
 
-	if (!patientAssignment) {
-		return notFound(); // Patient not found or not assigned to this doctor
-	}
+  if (!patientAssignment) return notFound();
 
-	// Get detailed patient data with readings
-	const patientData = await prisma.patient.findUnique({
-		where: {
-			id: params.id,
-		},
-		select: {
-			id: true,
-			patientId: true,
-			name: true,
-			age: true,
-			dateOfBirth: true,
-			term: true,
-			dueDate: true,
-			hasMessage: true,
-			readings: {
-				orderBy: {
-					date: "desc",
-				},
-				select: {
-					id: true,
-					date: true,
-					time: true,
-					type: true,
-					level: true,
-					status: true,
-					notes: true,
-				},
-			},
-			patientAssignments: {
-				where: {
-					doctorId: doctor.id,
-				},
-				select: {
-					lastVisitDate: true,
-					addedDate: true,
-				},
-			},
-		},
-	});
+  // Fetch patient details (note: no hasMessageForDoctor in Patient itself)
+  const patientData = await prisma.patient.findUnique({
+    where: { id: params.id },
+    select: {
+      id: true,
+      patientId: true,
+      name: true,
+      age: true,
+      dateOfBirth: true,
+      term: true,
+      dueDate: true,
+      readings: {
+        orderBy: { date: "desc" },
+        select: {
+          id: true,
+          date: true,
+          time: true,
+          type: true,
+          level: true,
+          status: true,
+          notes: true,
+        },
+      },
+      patientAssignments: {
+        where: { doctorId: doctor.id },
+        select: {
+          lastVisitDate: true,
+          addedDate: true,
+          hasMessageForDoctor: true, // <--- Moved here (correct place)
+        },
+      },
+    },
+  });
 
-	if (!patientData) {
-		return notFound();
-	}
+  if (!patientData) return notFound();
 
-	// Get the last visit date from the assignment
-	const lastVisit = patientData.patientAssignments[0]?.lastVisitDate;
+  const lastVisit = patientData.patientAssignments[0]?.lastVisitDate || null;
 
-	return <PatientDetailsView patientData={patientData} lastVisit={lastVisit} />;
+  return <PatientDetailsView patientData={patientData} lastVisit={lastVisit} />;
 }

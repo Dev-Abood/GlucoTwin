@@ -1,4 +1,4 @@
-"use client"; //! Client component, re-renders and auth and react hooks run here, commands run on browser console.
+"use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -32,7 +32,7 @@ import { Search, CheckCircle2 } from "lucide-react";
 import Header from "@/components/header";
 import Sidebar from "@/components/sidebar";
 
-// Types
+// Patient with merged hasMessageForDoctor
 type PatientWithStatus = {
   id: string;
   patientId: string;
@@ -40,7 +40,7 @@ type PatientWithStatus = {
   age: number;
   dateOfBirth: Date;
   term: number;
-  hasMessage: boolean;
+  hasMessageForDoctor: boolean;
   status: "NORMAL" | "ELEVATED" | "HIGH";
   lastVisitDate: Date;
 };
@@ -63,9 +63,9 @@ interface PatientsListProps {
         age: number;
         dateOfBirth: Date;
         term: number;
-        hasMessage: boolean;
       };
       lastVisitDate: Date;
+      hasMessageForDoctor: boolean; // now correctly defined here
     }[];
   };
 }
@@ -82,14 +82,14 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
     }
   }, [doctorData]);
 
-  // Process the patient data to get status from readings
+  // Process patient data: merge hasMessageForDoctor into patient object
   const patients: PatientWithStatus[] = useMemo(() => {
-    return doctorData.patientAssignments.map(({ patient, lastVisitDate }) => {
+    return doctorData.patientAssignments.map(({ patient, lastVisitDate, hasMessageForDoctor }) => {
       let overallStatus: "NORMAL" | "ELEVATED" | "HIGH" = "NORMAL";
       const readings = patient.readings;
 
       if (readings && readings.length > 0) {
-        // Check all readings and determine the highest priority status
+        // Determine highest status
         let hasHigh = false;
         let hasElevated = false;
 
@@ -98,40 +98,35 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
 
           if (status === "HIGH") {
             hasHigh = true;
-            break; // HIGH is highest priority, exit early
+            break;
           } else if (status === "ELEVATED") {
             hasElevated = true;
           }
         }
 
-        // Set overall status based on priority: HIGH > ELEVATED > NORMAL
-        if (hasHigh) {
-          overallStatus = "HIGH";
-        } else if (hasElevated) {
-          overallStatus = "ELEVATED";
-        } else {
-          overallStatus = "NORMAL";
-        }
+        if (hasHigh) overallStatus = "HIGH";
+        else if (hasElevated) overallStatus = "ELEVATED";
+        else overallStatus = "NORMAL";
       }
 
       return {
         ...patient,
+        hasMessageForDoctor,
         status: overallStatus,
         lastVisitDate,
       };
     });
   }, [doctorData.patientAssignments]);
 
-  // Format date to display nicely
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString("en-US", {
+  // Format date helper
+  const formatDate = (date: Date) =>
+    new Date(date).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
     });
-  };
 
-  // Get status badge component
+  // Status badge UI
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "NORMAL":
@@ -145,39 +140,27 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
     }
   };
 
-  // Filter patients based on search term and status filter
+  // Filtering logic
   const filteredPatients = useMemo(() => {
     return patients.filter((patient) => {
       const search = searchTerm.toLowerCase().trim();
 
-      // Status filter matching
-      const matchesStatus =
-        filterStatus === "all" || patient.status === filterStatus;
+      const matchesStatus = filterStatus === "all" || patient.status === filterStatus;
 
-      // Search term matching (if no search term, show all)
       if (!search) return matchesStatus;
 
-      // Convert status to lowercase for searching
       const displayStatus = patient.status.toLowerCase();
 
       const matchesSearch =
-        // Search by patient ID
         patient.patientId.toLowerCase().includes(search) ||
-        // Search by name
         patient.name.toLowerCase().includes(search) ||
-        // Search by age (convert to string for search)
         patient.age.toString().includes(search) ||
-        // Search by date of birth (formatted)
         formatDate(patient.dateOfBirth).toLowerCase().includes(search) ||
-        // Search by term (weeks)
         patient.term.toString().includes(search) ||
         `${patient.term} weeks`.toLowerCase().includes(search) ||
-        // Search by status
         displayStatus.includes(search) ||
-        // Search by message status
-        (patient.hasMessage && "has message".includes(search)) ||
-        (!patient.hasMessage && "no message".includes(search)) ||
-        // Search by last visit date (formatted)
+        (patient.hasMessageForDoctor && "has message".includes(search)) ||
+        (!patient.hasMessageForDoctor && "no message".includes(search)) ||
         formatDate(patient.lastVisitDate).toLowerCase().includes(search);
 
       return matchesSearch && matchesStatus;
@@ -190,15 +173,13 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Header section */}
+      {/* Header */}
       <Header />
 
-      {/* Main content area */}
       <div className="flex flex-1">
-        {/* Sidebar Navigation */}
+        {/* Sidebar */}
         <Sidebar userType="doctor" />
 
-        {/* Main Content */}
         <main className="flex-1 overflow-auto">
           <div className="container py-6">
             <div className="mb-6">
@@ -215,9 +196,8 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
                   Manage and monitor your gestational diabetes patients
                 </CardDescription>
 
-                {/* Search and Filter Controls */}
+                {/* Search + Filter */}
                 <div className="flex flex-col gap-4 mt-4 sm:flex-row">
-                  {/* Search Input */}
                   <div className="relative flex-1">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -228,13 +208,11 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
                     />
                   </div>
 
-                  {/* Status Filter Dropdown */}
+                  {/* Status Filter */}
                   <div className="w-full sm:w-[200px]">
                     <Select
                       value={filterStatus}
-                      onValueChange={(value) =>
-                        setFilterStatus(value as StatusFilter)
-                      }
+                      onValueChange={(value) => setFilterStatus(value as StatusFilter)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Filter by status" />
@@ -249,6 +227,7 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
                   </div>
                 </div>
               </CardHeader>
+
               <CardContent>
                 <Table>
                   <TableHeader>
@@ -275,10 +254,7 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
                       </TableRow>
                     ) : filteredPatients.length === 0 ? (
                       <TableRow>
-                        <TableCell
-                          colSpan={9}
-                          className="text-center py-4 text-muted-foreground"
-                        >
+                        <TableCell colSpan={9} className="text-center py-4 text-muted-foreground">
                           No patients match your search criteria
                         </TableCell>
                       </TableRow>
@@ -286,27 +262,19 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
                       filteredPatients.map((patient) => (
                         <TableRow key={patient.id}>
                           <TableCell>{patient.patientId}</TableCell>
-                          <TableCell className="font-medium">
-                            {patient.name}
-                          </TableCell>
+                          <TableCell className="font-medium">{patient.name}</TableCell>
                           <TableCell>{patient.age}</TableCell>
-                          <TableCell>
-                            {formatDate(patient.dateOfBirth)}
-                          </TableCell>
+                          <TableCell>{formatDate(patient.dateOfBirth)}</TableCell>
                           <TableCell>{patient.term} weeks</TableCell>
+                          <TableCell>{getStatusBadge(patient.status)}</TableCell>
                           <TableCell>
-                            {getStatusBadge(patient.status)}
-                          </TableCell>
-                          <TableCell>
-                            {patient.hasMessage ? (
+                            {patient.hasMessageForDoctor ? (
                               <CheckCircle2 className="h-4 w-4 text-green-600" />
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
-                          <TableCell>
-                            {formatDate(patient.lastVisitDate)}
-                          </TableCell>
+                          <TableCell>{formatDate(patient.lastVisitDate)}</TableCell>
                           <TableCell>
                             <Button
                               variant="outline"
