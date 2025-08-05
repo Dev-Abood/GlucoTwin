@@ -5,7 +5,7 @@ Things to check for or might not be correct + to add:
 - [ ]  Make the doctor's visualizations the same as patients
 - [ ]  The status of the glucose needs to implement the 6 cases.
 - [ ]  Implement back buttons
-- [ ]  Implement the messaging system.
+- [✔️]  Implement the messaging system.
 - [ ]  The code could be more clean and robust than now.
 - [ ]  Repetitive code could be combined into components.
 - [ ]  Overall code refactory might be needed
