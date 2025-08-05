@@ -5,7 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 
 const prisma = new PrismaClient();
 
-// Fetch messages for a specific doctor-patient assignment
+// Fetch messages for a given doctor-patient assignment
 export async function getMessages(patientAssignmentId: string) {
   const { userId } = await auth();
   if (!userId) return { error: "Not authenticated" };
@@ -15,15 +15,17 @@ export async function getMessages(patientAssignmentId: string) {
     orderBy: { timestamp: "asc" },
   });
 
-  return messages;
+  return messages.map((msg) => ({
+    ...msg,
+    timestamp: new Date(msg.timestamp),
+  }));
 }
 
-// Send message (patient -> doctor)
+// Send message from patient → doctor
 export async function sendMessageToDoctor(patientAssignmentId: string, content: string) {
   const { userId } = await auth();
   if (!userId) return { error: "Not authenticated" };
 
-  // Create message
   const newMessage = await prisma.message.create({
     data: {
       patientAssignmentId,
@@ -33,26 +35,25 @@ export async function sendMessageToDoctor(patientAssignmentId: string, content: 
     },
   });
 
-  // Mark unread for doctor
-  await prisma.patient.updateMany({
-    where: {
-      patientAssignments: { some: { id: patientAssignmentId } },
-    },
+  // Set unread flag for doctor
+  await prisma.patientAssignment.update({
+    where: { id: patientAssignmentId },
     data: { hasMessageForDoctor: true },
   });
 
-  return newMessage;
+  return {
+    ...newMessage,
+    timestamp: new Date(newMessage.timestamp),
+  };
 }
 
-// Mark messages as read for patient (doctor’s messages)
+// Mark doctor → patient messages as read (green dot disappears for patient)
 export async function markMessagesAsRead(patientAssignmentId: string) {
   const { userId } = await auth();
   if (!userId) return { error: "Not authenticated" };
 
-  await prisma.patient.updateMany({
-    where: {
-      patientAssignments: { some: { id: patientAssignmentId } },
-    },
+  await prisma.patientAssignment.update({
+    where: { id: patientAssignmentId },
     data: { hasMessageForPatient: false },
   });
 

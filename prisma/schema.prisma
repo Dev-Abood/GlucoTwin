@@ -21,9 +21,6 @@ model Patient {
   dateOfBirth DateTime
   term        Int
   dueDate     DateTime
-  // NEW fields
-  hasMessageForDoctor  Boolean @default(false) // patient sent -> doctor sees
-  hasMessageForPatient Boolean @default(false) // doctor sent -> patient sees
 
   patientAssignments PatientAssignment[]
   readings           Reading[]
@@ -37,6 +34,8 @@ model Doctor {
   name      String
   specialty String? // Nullable
 
+  
+
   // Each healthcare provider can have a list of assignments to oversee the patients
   patientAssignments PatientAssignment[]
 }
@@ -44,19 +43,21 @@ model Doctor {
 // PatientAssignment Table/Relation Creation
 // tracks the assignment of patients to doctors
 model PatientAssignment {
-  id            String   @id @default(uuid()) // PK unique ID
+  id            String   @id @default(uuid())
   doctorId      String
   patientId     String
   lastVisitDate DateTime
   addedDate     DateTime
 
-  // Relationships and forgein keys:
-  // doctor overseeing the patient, mapped to doctorID
+  // NEW flags
+  hasMessageForDoctor  Boolean @default(false)
+  hasMessageForPatient Boolean @default(false)
+
   doctor   Doctor    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  // patient being overseen, mapped to patientID 
   patient  Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  messages Message[] // each patient assignment can have multiple messages
+  messages Message[]
 }
+
 
 // Reading Table/Relation Creation
 model Reading {

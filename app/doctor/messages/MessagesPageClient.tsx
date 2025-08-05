@@ -27,7 +27,7 @@ interface Patient {
   dateOfBirth: Date;
   term: number;
   dueDate: Date;
-  hasMessage: boolean;
+  hasMessageForDoctor: boolean;
 }
 
 interface Message {
@@ -73,20 +73,16 @@ export default function MessagesPage({ patients, doctorData }: MessagesPageProps
   const [filterStatus, setFilterStatus] = useState<StatusFilter>("all");
   const [filterMessages, setFilterMessages] = useState<MessageFilter>("all");
 
-  // Filter patients by search and filters
+  // Filter patients by search + filters
   const filteredPatients = patients.filter((patient) => {
     const search = searchTerm.toLowerCase();
-
     const matchesSearch =
       patient.name.toLowerCase().includes(search) ||
       patient.patientId.toLowerCase().includes(search) ||
       patient.status.toLowerCase().includes(search);
-
-    const matchesStatus =
-      filterStatus === "all" || patient.status === filterStatus;
-
+    const matchesStatus = filterStatus === "all" || patient.status === filterStatus;
     const matchesMessages =
-      filterMessages === "all" || (filterMessages === "unread" && patient.hasMessage);
+      filterMessages === "all" || (filterMessages === "unread" && patient.hasMessageForDoctor);
 
     return matchesSearch && matchesStatus && matchesMessages;
   });
@@ -95,17 +91,17 @@ export default function MessagesPage({ patients, doctorData }: MessagesPageProps
   const handleSelectPatient = async (patient: PatientWithAssignment) => {
     setSelectedPatient(patient);
 
-    // Mark messages as read (green dot disappears)
-    if (patient.hasMessage) {
-      await markMessagesAsRead(patient.id);
-      patient.hasMessage = false;
+    // Mark messages as read (remove green dot)
+    if (patient.hasMessageForDoctor) {
+      await markMessagesAsRead(patient.assignment.id);
+      patient.hasMessageForDoctor = false;
     }
 
     const msgs = await getMessages(patient.assignment.id);
     if (!("error" in msgs)) setMessages(msgs);
   };
 
-  // Send message and persist to DB
+  // Send message
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedPatient) return;
 
@@ -117,11 +113,7 @@ export default function MessagesPage({ patients, doctorData }: MessagesPageProps
   };
 
   const formatTime = (date: Date) =>
-    new Date(date).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    new Date(date).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 
   const handleBackToPatients = () => {
     router.push("/doctor/patients");
@@ -138,7 +130,6 @@ export default function MessagesPage({ patients, doctorData }: MessagesPageProps
     }
   };
 
-  // Patient Card component
   const PatientCard = ({ patient }: { patient: PatientWithAssignment }) => (
     <div
       key={patient.id}
@@ -149,10 +140,7 @@ export default function MessagesPage({ patients, doctorData }: MessagesPageProps
         <div className="flex items-center space-x-3">
           <Avatar className="h-12 w-12">
             <AvatarFallback className="bg-blue-100 text-blue-600">
-              {patient.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")}
+              {patient.name.split(" ").map((n) => n[0]).join("")}
             </AvatarFallback>
           </Avatar>
           <div>
@@ -165,8 +153,7 @@ export default function MessagesPage({ patients, doctorData }: MessagesPageProps
               <span>{patient.term} weeks</span>
               <span>•</span>
               <Badge variant={getStatusColor(patient.status)}>
-                {patient.status.charAt(0).toUpperCase() +
-                  patient.status.slice(1).toLowerCase()}
+                {patient.status.charAt(0).toUpperCase() + patient.status.slice(1).toLowerCase()}
               </Badge>
               {patient.lastReading && (
                 <>
@@ -179,7 +166,7 @@ export default function MessagesPage({ patients, doctorData }: MessagesPageProps
         </div>
 
         <div className="flex items-center space-x-3">
-          {patient.hasMessage && <div className="w-3 h-3 bg-green-500 rounded-full"></div>}
+          {patient.hasMessageForDoctor && <div className="w-3 h-3 bg-green-500 rounded-full"></div>}
           <Button variant="outline" size="sm">
             <MessageCircle className="h-4 w-4 mr-2" />
             Chat
@@ -191,8 +178,6 @@ export default function MessagesPage({ patients, doctorData }: MessagesPageProps
 
   /* Chat View */
   if (selectedPatient) {
-    const patientMessages = messages;
-
     return (
       <div className="flex min-h-screen flex-col">
         <Header />
@@ -217,10 +202,7 @@ export default function MessagesPage({ patients, doctorData }: MessagesPageProps
                 <div className="flex items-center space-x-4">
                   <Avatar className="h-12 w-12">
                     <AvatarFallback className="bg-blue-100 text-blue-600">
-                      {selectedPatient.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
+                      {selectedPatient.name.split(" ").map((n) => n[0]).join("")}
                     </AvatarFallback>
                   </Avatar>
                   <div>
@@ -249,13 +231,7 @@ export default function MessagesPage({ patients, doctorData }: MessagesPageProps
 
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
-                <div className="flex justify-center">
-                  <span className="bg-white text-muted-foreground text-xs px-3 py-1 rounded-full border">
-                    Today
-                  </span>
-                </div>
-
-                {patientMessages.map((message) => (
+                {messages.map((message) => (
                   <div
                     key={message.id}
                     className={`flex ${
@@ -324,7 +300,7 @@ export default function MessagesPage({ patients, doctorData }: MessagesPageProps
 
             {/* Search + Filters */}
             <div className="flex flex-col gap-4 sm:flex-row mb-4">
-              {/* Search Input */}
+              {/* Search */}
               <div className="relative flex-1">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -348,7 +324,7 @@ export default function MessagesPage({ patients, doctorData }: MessagesPageProps
                 </SelectContent>
               </Select>
 
-              {/* New Message Filter */}
+              {/* Message Filter */}
               <Select value={filterMessages} onValueChange={(value) => setFilterMessages(value as MessageFilter)}>
                 <SelectTrigger className="w-[160px]">
                   <SelectValue placeholder="Filter by message" />

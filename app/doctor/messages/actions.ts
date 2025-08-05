@@ -1,4 +1,3 @@
-// app/doctor/messages/actions.ts
 "use server";
 
 import { PrismaClient } from "@prisma/client";
@@ -6,6 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 
 const prisma = new PrismaClient();
 
+// Fetch messages for a given patientAssignment
 export async function getMessages(patientAssignmentId: string) {
   const { userId } = await auth();
   if (!userId) return { error: "Not authenticated" };
@@ -15,17 +15,18 @@ export async function getMessages(patientAssignmentId: string) {
     orderBy: { timestamp: "asc" },
   });
 
-  // Convert timestamp to Date objects (important for client formatting)
   return messages.map((msg) => ({
     ...msg,
     timestamp: new Date(msg.timestamp),
   }));
 }
 
+// Send a message from doctor -> patient
 export async function sendMessageToPatient(patientAssignmentId: string, content: string) {
   const { userId } = await auth();
   if (!userId) return { error: "Not authenticated" };
 
+  // Create message
   const newMessage = await prisma.message.create({
     data: {
       patientAssignmentId,
@@ -35,19 +36,26 @@ export async function sendMessageToPatient(patientAssignmentId: string, content:
     },
   });
 
+  // Mark as unread for patient
+  await prisma.patientAssignment.update({
+    where: { id: patientAssignmentId },
+    data: { hasMessageForPatient: true },
+  });
+
   return {
     ...newMessage,
     timestamp: new Date(newMessage.timestamp),
   };
 }
 
-export async function markMessagesAsRead(patientId: string) {
+// Mark messages as read (doctor has read patient's messages)
+export async function markMessagesAsRead(patientAssignmentId: string) {
   const { userId } = await auth();
   if (!userId) return { error: "Not authenticated" };
 
-  await prisma.patient.update({
-    where: { id: patientId },
-    data: { hasMessage: false },
+  await prisma.patientAssignment.update({
+    where: { id: patientAssignmentId },
+    data: { hasMessageForDoctor: false },
   });
 
   return { success: true };

@@ -1,4 +1,3 @@
-// app/doctor/messages/page.tsx
 import { PrismaClient } from "@prisma/client";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
@@ -17,17 +16,15 @@ export default async function Page() {
       id: true,
       patientAssignments: {
         select: {
-          lastVisitDate: true,
           id: true,
           doctorId: true,
+          lastVisitDate: true,
+          hasMessageForDoctor: true,
           patient: {
             select: {
               readings: {
                 select: { level: true, type: true, status: true },
-                orderBy: [
-                  { date: "desc" },
-                  { time: "desc" },
-                ],
+                orderBy: [{ date: "desc" }, { time: "desc" }],
                 take: 1,
               },
               id: true,
@@ -38,7 +35,6 @@ export default async function Page() {
               dateOfBirth: true,
               term: true,
               dueDate: true,
-              hasMessage: true,
             },
           },
         },
@@ -59,17 +55,14 @@ export default async function Page() {
       dateOfBirth: patient.dateOfBirth,
       term: patient.term,
       dueDate: patient.dueDate,
-      hasMessage: patient.hasMessage,
+      hasMessageForDoctor: assignment.hasMessageForDoctor,
       assignment: {
         id: assignment.id,
         doctorId: assignment.doctorId,
         lastVisitDate: assignment.lastVisitDate,
       },
       lastReading: patient.readings[0]
-        ? {
-            level: patient.readings[0].level,
-            type: patient.readings[0].type,
-          }
+        ? { level: patient.readings[0].level, type: patient.readings[0].type }
         : undefined,
       status: patient.readings[0]?.status || "NORMAL",
     };
