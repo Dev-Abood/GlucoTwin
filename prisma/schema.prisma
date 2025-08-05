@@ -13,19 +13,20 @@ datasource db {
 
 // Patient Table/Relation Creation
 model Patient {
-  // Table attributes and basic constraints:
-  id          String   @id @default(uuid()) // PK + unique user id
-  patientId   String   @unique // Unique, can't be deprecated
+  id          String   @id @default(uuid())
+  patientId   String   @unique
   email       String   @unique
   name        String
   age         Int
   dateOfBirth DateTime
   term        Int
   dueDate     DateTime
-  hasMessage  Boolean  @default(false) // Set default value to false, as in user doesn't have a message
+  // NEW fields
+  hasMessageForDoctor  Boolean @default(false) // patient sent -> doctor sees
+  hasMessageForPatient Boolean @default(false) // doctor sent -> patient sees
 
-  patientAssignments PatientAssignment[] // each patient belongs to a set of assignments relationships with doctors
-  readings           Reading[] // each patient has his own glucose readings list
+  patientAssignments PatientAssignment[]
+  readings           Reading[]
 }
 
 // Doctor Table/Relation Creation
