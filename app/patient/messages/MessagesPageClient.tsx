@@ -247,6 +247,7 @@ export default function MessagesPage({
           <div className="container py-6">
             <div className="mb-6 flex items-center justify-between">
               <h1 className="text-3xl font-bold">Messages</h1>
+              
             </div>
 
             {/* Search */}
