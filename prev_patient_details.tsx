@@ -1,8 +1,11 @@
-"use client";
+"use client"; //! Client component, re-renders and auth and react hooks run here, commands run on browser console.
 
+// React hooks and other libaries
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
+// UI Components
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -35,6 +38,7 @@ import { format } from "date-fns";
 import Header from "@/components/header";
 import Sidebar from "@/components/sidebar";
 
+//* Type for the patient reading
 type Reading = {
   id: string;
   date: Date;
@@ -45,6 +49,7 @@ type Reading = {
   notes?: string | null;
 };
 
+//* Type for the daily readings grouped format with status
 type DayReadings = {
   date: string;
   BeforeBreakfast: { level: number; status: string } | null;
@@ -55,6 +60,7 @@ type DayReadings = {
   AfterDinner: { level: number; status: string } | null;
 };
 
+//* Type for the chart data format
 type GlucoseChartData = {
   date: string;
   fasting: number | null;
@@ -63,6 +69,7 @@ type GlucoseChartData = {
   afterDinner: number | null;
 };
 
+//* Type for the patient data retrieved
 type PatientData = {
   id: string;
   patientId: string;
@@ -71,15 +78,15 @@ type PatientData = {
   dateOfBirth: Date;
   term: number;
   dueDate: Date;
+  hasMessage: boolean;
   readings: Reading[];
   patientAssignments: Array<{
     lastVisitDate: Date | null;
     addedDate: Date;
-    hasMessageForDoctor: boolean; // <--- Now here
   }>;
 };
 
-
+//? Update the component props, to ensure that it's type-safe
 interface PatientDetailsViewProps {
   patientData: PatientData | null;
   lastVisit: Date | null;
@@ -89,16 +96,21 @@ export default function PatientDetailsView({
   patientData,
   lastVisit,
 }: PatientDetailsViewProps) {
-  const router = useRouter();
+  const router = useRouter(); // next.js router for navigation
 
+  //* state saving the daily readings from the patient
   const [readingsByDate, setReadingsByDate] = useState<DayReadings[]>([]);
+  //* state saving and setting the data of the patient's reading visualizations
   const [chartData, setChartData] = useState<GlucoseChartData[]>([]);
+
+  console.log(patientData?.readings.length);
 
   useEffect(() => {
     if (!patientData?.readings) return;
 
     const groupedReadings = patientData.readings.reduce(
       (acc: Record<string, DayReadings>, reading: Reading) => {
+        //! format the date to string
         const dateStr = reading.date.toISOString().slice(0, 10);
 
         if (!acc[dateStr]) {
@@ -113,11 +125,13 @@ export default function PatientDetailsView({
           };
         }
 
+        // Create reading object with level and status
         const readingData = {
           level: reading.level,
           status: reading.status,
         };
 
+        //! switch statement for assigning the reading level and status to select reading type
         switch (reading.type) {
           case "BEFORE_BREAKFAST":
             acc[dateStr].BeforeBreakfast = readingData;
@@ -138,6 +152,7 @@ export default function PatientDetailsView({
             acc[dateStr].AfterDinner = readingData;
             break;
           default:
+            //! handle error of not having a defined reading type
             console.error("Reading type not defined:", reading.type);
         }
 
@@ -146,12 +161,18 @@ export default function PatientDetailsView({
       {}
     );
 
-    const sortedReadings = Object.values(groupedReadings).sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
-
+    console.log("Here! Grouped:  ", groupedReadings);
+    
+    // Convert to array and sort by date (newest first)
+    const sortedReadings = Object.values(groupedReadings).sort((a, b) => {
+      //* Get the date difference
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
+    
+    console.log("Here Sorted!:  ", sortedReadings.length);
     setReadingsByDate(sortedReadings);
 
+    //! Create chart data for last 7 days
     const last7Days = sortedReadings.slice(0, 7).reverse();
     const chartFormatData = last7Days.map((day) => ({
       date: format(new Date(day.date), "MM/dd"),
@@ -164,33 +185,45 @@ export default function PatientDetailsView({
     setChartData(chartFormatData);
   }, [patientData]);
 
+  // Determine patient status based on reading statuses from database
   const determinePatientStatus = (): "NORMAL" | "ELEVATED" | "HIGH" | "unknown" => {
     const readings = patientData?.readings;
-    if (!readings || readings.length === 0) return "unknown";
+    if (!readings || readings.length === 0) {
+      return "unknown";
+    }
 
+    // Check all readings and determine the highest priority status
     let hasHigh = false;
     let hasElevated = false;
 
     for (const reading of readings) {
       const status = reading.status.toUpperCase();
-
+      
       if (status === "HIGH") {
         hasHigh = true;
-        break;
+        break; // HIGH is highest priority, exit early
       } else if (status === "ELEVATED") {
         hasElevated = true;
       }
     }
 
-    if (hasHigh) return "HIGH";
-    if (hasElevated) return "ELEVATED";
-    return "NORMAL";
+    // Return status based on priority: HIGH > ELEVATED > NORMAL
+    if (hasHigh) {
+      return "HIGH";
+    } else if (hasElevated) {
+      return "ELEVATED";
+    } else {
+      return "NORMAL";
+    }
   };
 
   const patientStatus = determinePatientStatus();
 
-  const formatDate = (date: Date) => format(new Date(date), "MMM d, yyyy");
+  const formatDate = (date: Date) => {
+    return format(new Date(date), "MMM d, yyyy");
+  };
 
+  // Get status badge component
   const getStatusBadge = (status: string) => {
     switch (status.toUpperCase()) {
       case "NORMAL":
@@ -204,9 +237,10 @@ export default function PatientDetailsView({
     }
   };
 
+  // Helper to apply text color and styling based on reading status from database
   const getReadingClass = (readingData: { level: number; status: string } | null) => {
     if (!readingData) return "";
-
+    
     const status = readingData.status.toUpperCase();
     switch (status) {
       case "HIGH":
@@ -220,6 +254,7 @@ export default function PatientDetailsView({
     }
   };
 
+  // Helper to render reading cell with proper styling
   const renderReadingCell = (readingData: { level: number; status: string } | null) => {
     if (!readingData) {
       return <span className="text-muted-foreground">-</span>;
@@ -230,7 +265,9 @@ export default function PatientDetailsView({
         <span className={getReadingClass(readingData)}>
           {readingData.level.toFixed(2)}
         </span>
-        <div className="mt-1">{getStatusBadge(readingData.status)}</div>
+        <div className="mt-1">
+          {getStatusBadge(readingData.status)}
+        </div>
       </div>
     );
   };
@@ -247,7 +284,7 @@ export default function PatientDetailsView({
       </div>
     );
   }
-
+  
   return (
     <div className="flex min-h-screen flex-col">
       {/* Header section */}
