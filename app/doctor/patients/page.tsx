@@ -20,7 +20,7 @@ export default async function DoctorPatientsPage() {
         select: {
           id: true,
           lastVisitDate: true,
-          hasMessageForDoctor: true, // <-- correctly placed here
+          hasMessageForDoctor: true, 
           patient: {
             select: {
               id: true,

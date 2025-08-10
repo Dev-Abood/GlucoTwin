@@ -32,7 +32,6 @@ import { Search, CheckCircle2 } from "lucide-react";
 import Header from "@/components/header";
 import Sidebar from "@/components/sidebar";
 
-// Patient with merged hasMessageForDoctor
 type PatientWithStatus = {
   id: string;
   patientId: string;
