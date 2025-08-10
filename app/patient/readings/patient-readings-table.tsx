@@ -1,11 +1,11 @@
 "use client";
 
-// ===== React & Next.js =====
+// React & Next.js 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-// ===== UI Components =====
+// UI Components 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -43,14 +43,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 
-// ===== Icons =====
+// Icons 
 import { Pencil, Search, Trash2 } from "lucide-react";
 
-// ===== Types =====
+// Types 
 import { GlucoseReading } from "@/lib/types";
 import { ReadingType } from "@/prisma/types/schema";
 
-// ===== Utils & Hooks =====
+// Utils & Hooks 
 import { useToast } from "@/hooks/use-toast";
 import { formatReadingType } from "../utils/patient-utils";
 import { deleteReading } from "../actions";
@@ -172,7 +172,7 @@ export default function PatientReadingsTable({
    */
   const getStatusBadge = (status: string): React.JSX.Element => {
     switch (
-      status // ← Use status directly
+      status 
     ) {
       case "NORMAL":
         return <Badge variant="outline">Normal</Badge>;

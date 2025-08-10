@@ -16,6 +16,7 @@ model Patient {
   id          String   @id @default(uuid())
   patientId   String   @unique
   email       String   @unique
+  phone       String   @default("+1234567890") 
   name        String
   age         Int
   dateOfBirth DateTime
@@ -31,6 +32,7 @@ model Doctor {
   // Table attributes and basic constraints:
   id        String  @id @default(uuid()) // PK + unique user id
   email     String  @unique
+  phone     String  @default("+1234567890") // Add this line
   name      String
   specialty String? // Nullable
 
