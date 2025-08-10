@@ -67,7 +67,7 @@ export default function Dashboard({ doctorData }: DashboardProps){
   return (
     <div className="flex min-h-screen flex-col">
       {/* Header section */}
-      <Header />
+      <Header userType="doctor"/>
 
       {/* Main content area */}
       <div className="flex flex-1">

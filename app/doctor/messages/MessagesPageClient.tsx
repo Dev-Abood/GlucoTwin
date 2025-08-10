@@ -180,7 +180,7 @@ export default function MessagesPage({ patients, doctorData }: MessagesPageProps
   if (selectedPatient) {
     return (
       <div className="flex min-h-screen flex-col">
-        <Header />
+        <Header userType="doctor"/>
         <div className="flex flex-1">
           <Sidebar userType="doctor" />
           <main className="flex-1 overflow-auto">
@@ -285,7 +285,7 @@ export default function MessagesPage({ patients, doctorData }: MessagesPageProps
   /* Patient List View */
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      <Header userType="doctor"/>
       <div className="flex flex-1">
         <Sidebar userType="doctor" />
         <main className="flex-1 overflow-auto">

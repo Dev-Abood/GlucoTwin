@@ -173,7 +173,7 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
   return (
     <div className="flex min-h-screen flex-col">
       {/* Header */}
-      <Header />
+      <Header userType="doctor"/>
 
       <div className="flex flex-1">
         {/* Sidebar */}

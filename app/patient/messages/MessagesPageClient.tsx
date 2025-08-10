@@ -145,7 +145,7 @@ export default function MessagesPage({
   if (selectedAssignment) {
     return (
       <div className="flex min-h-screen flex-col">
-        <Header />
+        <Header userType="patient" />
         <div className="flex flex-1">
           <Sidebar userType="patient" />
           <main className="flex-1 overflow-auto">
@@ -240,7 +240,7 @@ export default function MessagesPage({
   /* Doctor List View */
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      <Header userType="patient" />
       <div className="flex flex-1">
         <Sidebar userType="patient" />
         <main className="flex-1 overflow-auto">

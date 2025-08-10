@@ -236,12 +236,12 @@ export default function PatientReadingsTable({
   return (
     <div className="flex min-h-screen flex-col">
       {/* Application Header */}
-      <Header />
+      <Header userType="patient" />
 
       {/* Main Content Area */}
       <div className="flex flex-1">
         {/* Navigation Sidebar */}
-        <Sidebar userType={"patient"} />
+        <Sidebar userType="patient" />
 
         {/* Primary Content */}
         <main className="flex-1 overflow-auto">

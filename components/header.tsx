@@ -1,16 +1,18 @@
 "use client";
 
-// ===== Authentication =====
+// Authentication 
 import { useAuth } from "@clerk/nextjs";
 
-// ===== UI Components =====
+// UI Components 
 import { Button } from "@/components/ui/button";
 
-// ===== Icons =====
+// Icons 
 import { Bell, User, LogOut } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 
-export default function Header() {
+interface HeaderProps{ userType: "patient" | "doctor" }
+
+export default function Header({ userType } : HeaderProps) {
   const { signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -18,6 +20,11 @@ export default function Header() {
   const handleLogout = async () => {
     await signOut();
     router.push("/");
+  };
+
+  const handleProfileVisit = async () => {
+    
+    router.push(`"/${userType}/profile"`);
   };
 
   const isDoctorRoute =
@@ -41,7 +48,7 @@ export default function Header() {
             <Bell className="h-5 w-5" />
           </Button>
           <Button variant="ghost" size="icon" aria-label="User profile">
-            <User className="h-5 w-5" />
+            <User className="h-5 w-5" onClick={handleProfileVisit}/>
           </Button>
           <Button variant="ghost" size="icon" onClick={handleLogout}>
             <LogOut className="h-5 w-5" />
