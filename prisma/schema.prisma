@@ -36,8 +36,6 @@ model Doctor {
   name      String
   specialty String? // Nullable
 
-  
-
   // Each healthcare provider can have a list of assignments to oversee the patients
   patientAssignments PatientAssignment[]
 }
@@ -55,11 +53,27 @@ model PatientAssignment {
   hasMessageForDoctor  Boolean @default(false)
   hasMessageForPatient Boolean @default(false)
 
-  doctor   Doctor    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  patient  Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  messages Message[]
+  doctor          Doctor          @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patient         Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  messages        Message[]
+  recommendations Recommendation[]
 }
 
+// NEW: Recommendation model
+model Recommendation {
+  id                  String   @id @default(uuid())
+  patientAssignmentId String
+  title               String
+  description         String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  isActive            Boolean  @default(true)
+
+  // Relationship
+  patientAssignment PatientAssignment @relation(fields: [patientAssignmentId], references: [id], onDelete: Cascade)
+
+  @@index([patientAssignmentId])
+}
 
 // Reading Table/Relation Creation
 model Reading {

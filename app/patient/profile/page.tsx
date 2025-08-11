@@ -204,7 +204,7 @@ export default function PatientProfilePage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Patient ID</Label>
+                    <Label className="text-sm font-medium text-muted-foreground ">Patient ID</Label>
                     <p className="text-lg font-semibold">{profile.patientId}</p>
                   </div>
                   <div>
@@ -313,7 +313,7 @@ export default function PatientProfilePage() {
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground block">Monitoring Status</Label>
-                    <Badge className="bg-green-100 text-green-800">Active Monitoring</Badge>
+                    <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Active Monitoring</Badge>
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Account Created</Label>

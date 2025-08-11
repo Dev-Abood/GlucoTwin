@@ -4,12 +4,13 @@ Things to check for or might not be correct + to add:
 - [ ]  Better document the code
 - [ ]  Make the doctor's visualizations the same as patients
 - [ ]  The status of the glucose needs to implement the 6 cases.
-- [ ]  Implement back buttons
+- [ ]  Implement logo button
+- [ ]  Implement doctor set recommendations
 - [✔️]  Implement the messaging system.
 - [ ]  The code could be more clean and robust than now.
 - [ ]  Repetitive code could be combined into components.
 - [ ]  Overall code refactory might be needed
-- [ ]  Implementing the user profile page.
+- [✔️]  Implementing the user profile page.
 - [ ]  Implementing the notification page (button)
 - [✔️]  Implementing when user goes to onboarding after sign up.
 - [✔️]  Implement a way to assign patients to a doctor
@@ -18,4 +19,4 @@ Things to check for or might not be correct + to add:
 - [✔️]  A way for doctors to be able to register in the system
 - [ ]  Handle the case for /doctor or /patient where it did not find the route (might push them to the dashboard)
 - [✔️]  Fix any errors with date picker in create readings (like it keeps moving up and down ??)
-- [✔️ ]  Fix any hydration error in the app for maybe theme provider
+- [✔️]  Fix any hydration error in the app for maybe theme provider

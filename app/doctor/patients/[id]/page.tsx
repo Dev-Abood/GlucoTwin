@@ -58,9 +58,10 @@ export default async function PatientDetailsPage({
       patientAssignments: {
         where: { doctorId: doctor.id },
         select: {
+          id: true,
           lastVisitDate: true,
           addedDate: true,
-          hasMessageForDoctor: true, // <--- Moved here (correct place)
+          hasMessageForDoctor: true,
         },
       },
     },
