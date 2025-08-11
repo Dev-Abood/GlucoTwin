@@ -7,8 +7,18 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { ArrowLeft, Settings } from "lucide-react"
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts"
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as ChartTooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from "recharts"
 import { format } from "date-fns"
 import Header from "@/components/header"
 import Sidebar from "@/components/sidebar"
@@ -26,12 +36,12 @@ type Reading = {
 
 type DayReadings = {
   date: string
-  BeforeBreakfast: { level: number; status: string } | null
-  AfterBreakfast: { level: number; status: string } | null
-  BeforeLunch: { level: number; status: string } | null
-  AfterLunch: { level: number; status: string } | null
-  BeforeDinner: { level: number; status: string } | null
-  AfterDinner: { level: number; status: string } | null
+  BeforeBreakfast: { level: number; status: string; notes?: string | null } | null
+  AfterBreakfast: { level: number; status: string; notes?: string | null } | null
+  BeforeLunch: { level: number; status: string; notes?: string | null } | null
+  AfterLunch: { level: number; status: string; notes?: string | null } | null
+  BeforeDinner: { level: number; status: string; notes?: string | null } | null
+  AfterDinner: { level: number; status: string; notes?: string | null } | null
 }
 
 type GlucoseChartData = {
@@ -91,6 +101,7 @@ export default function PatientDetailsView({ patientData, lastVisit }: PatientDe
       const readingData = {
         level: reading.level,
         status: reading.status,
+        notes: reading.notes,
       }
 
       switch (reading.type) {
@@ -177,7 +188,7 @@ export default function PatientDetailsView({ patientData, lastVisit }: PatientDe
     }
   }
 
-  const getReadingClass = (readingData: { level: number; status: string } | null) => {
+  const getReadingClass = (readingData: { level: number; status: string; notes?: string | null } | null) => {
     if (!readingData) return ""
 
     const status = readingData.status.toUpperCase()
@@ -193,16 +204,25 @@ export default function PatientDetailsView({ patientData, lastVisit }: PatientDe
     }
   }
 
-  const renderReadingCell = (readingData: { level: number; status: string } | null) => {
+  const renderReadingCell = (readingData: { level: number; status: string; notes?: string | null } | null) => {
     if (!readingData) {
       return <span className="text-muted-foreground">-</span>
     }
 
     return (
-      <div className="flex flex-col items-center">
-        <span className={getReadingClass(readingData)}>{readingData.level.toFixed(2)}</span>
-        <div className="mt-1">{getStatusBadge(readingData.status)}</div>
-      </div>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex flex-col items-center cursor-help">
+              <span className={getReadingClass(readingData)}>{readingData.level.toFixed(2)}</span>
+              <div className="mt-1">{getStatusBadge(readingData.status)}</div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="max-w-xs">{readingData.notes || "No note on this reading"}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     )
   }
 
@@ -365,7 +385,7 @@ export default function PatientDetailsView({ patientData, lastVisit }: PatientDe
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="date" />
                           <YAxis domain={[60, 180]} />
-                          <Tooltip formatter={(value) => (value ? Number(value).toFixed(2) : "0.00")} />
+                          <ChartTooltip formatter={(value) => (value ? Number(value).toFixed(2) : "0.00")} />
                           <ReferenceLine y={95} stroke="red" strokeDasharray="3 3" label="Fasting Target" />
                           <ReferenceLine y={140} stroke="red" strokeDasharray="3 3" label="Post-meal Target" />
                           <Line type="monotone" dataKey="fasting" stroke="#8884d8" name="Fasting" />
