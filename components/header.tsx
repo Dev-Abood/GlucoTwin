@@ -47,7 +47,7 @@ export default function Header({ userType }: HeaderProps) {
         </div>
         <div className="flex items-center gap-4">
           {/* <CHANGE> Replaced the non-functional Bell button with the new NotificationPanel component */}
-          <NotificationPanel userType={userType} />
+          <NotificationPanel />
           <Button variant="ghost" size="icon" aria-label="User profile" onClick={handleProfileVisit}>
             <User className="h-5 w-5" />
           </Button>

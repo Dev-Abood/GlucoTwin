@@ -22,6 +22,7 @@ export default async function PatientDashboard() {
   const patientData = await prisma.patient.findUnique({
     where: { id: userId },
     select: {
+      id: true,
       name: true,
       readings: {
         select: {

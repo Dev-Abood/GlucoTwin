@@ -2,6 +2,7 @@
 
 import { PrismaClient } from "@prisma/client";
 import { auth } from "@clerk/nextjs/server";
+import { createMessageNotificationForDoctor } from "@/components/notifications/notification-actions";
 
 const prisma = new PrismaClient();
 
@@ -26,7 +27,7 @@ export async function sendMessageToPatient(patientAssignmentId: string, content:
   const { userId } = await auth();
   if (!userId) return { error: "Not authenticated" };
 
-  // Create message
+  // Create the message
   const newMessage = await prisma.message.create({
     data: {
       patientAssignmentId,
@@ -36,7 +37,23 @@ export async function sendMessageToPatient(patientAssignmentId: string, content:
     },
   });
 
-  // Mark as unread for patient
+  // Get recipient (patient) + sender (doctor) info in ONE query
+  const pa = await prisma.patientAssignment.findUnique({
+    where: { id: patientAssignmentId },
+    select: {
+      patientId: true,
+      doctor: { select: { id: true, name: true } },
+    },
+  });
+
+  if (!pa) return { error: "PatientAssignment not found" };
+
+  await createMessageNotificationForDoctor(
+    pa.patientId,         
+    pa.doctor?.name ?? "",
+    newMessage.id         
+  );
+
   await prisma.patientAssignment.update({
     where: { id: patientAssignmentId },
     data: { hasMessageForPatient: true },
@@ -47,6 +64,7 @@ export async function sendMessageToPatient(patientAssignmentId: string, content:
     timestamp: new Date(newMessage.timestamp),
   };
 }
+
 
 // Mark messages as read (doctor has read patient's messages)
 export async function markMessagesAsRead(patientAssignmentId: string) {

@@ -25,6 +25,8 @@ model Patient {
 
   patientAssignments PatientAssignment[]
   readings           Reading[]
+  // <CHANGE> Added notifications relationship for patients
+  notifications      Notification[]
 }
 
 // Doctor Table/Relation Creation
@@ -38,6 +40,8 @@ model Doctor {
 
   // Each healthcare provider can have a list of assignments to oversee the patients
   patientAssignments PatientAssignment[]
+  // <CHANGE> Added notifications relationship for doctors
+  notifications      Notification[]
 }
 
 // PatientAssignment Table/Relation Creation
@@ -105,6 +109,39 @@ model Message {
 
   // Relationship
   patientAssignment PatientAssignment @relation(fields: [patientAssignmentId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  title     String
+  content   String
+  metadata  Json? //  Store reading values, message previews, etc. as JSON
+  isRead    Boolean          @default(false)
+  isArchived Boolean         @default(false)
+  createdAt DateTime         @default(now())
+  readAt    DateTime?
+
+  //  Only recipient relationships - much cleaner
+  patientId String?
+  doctorId  String?
+
+  patient Patient? @relation(fields: [patientId], references: [id])
+  doctor  Doctor?  @relation(fields: [doctorId], references: [id])
+
+  @@index([patientId, isRead, isArchived])
+  @@index([doctorId, isRead, isArchived])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+
+// <CHANGE> NEW: Notification types enum
+enum NotificationType {
+  DANGEROUS_READING    // For glucose readings that are HIGH or ELEVATED
+  NEW_MESSAGE         // For new messages between doctor and patient
+  NEW_RECOMMENDATION  // For new recommendations from doctor to patient
+  DAILY_REMINDER      // For daily glucose reading reminders
 }
 
 // enumarating messaging sender type

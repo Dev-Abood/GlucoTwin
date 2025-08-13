@@ -34,12 +34,14 @@ import { formatReadingType } from "../utils/patient-utils"
 import Header from "@/components/header"
 import Sidebar from "@/components/sidebar"
 import { getPatientRecommendations } from "./recommendation-actions"
+import { checkAndCreateDailyReminder } from "@/components/notifications/notification-actions"
 
 /**
  * Props for the Dashboard component
  */
 interface DashboardProps {
   patientData: {
+    id: string
     name: string
     readings: GlucoseReading[]
   }
@@ -92,6 +94,7 @@ export default function Dashboard({ patientData }: DashboardProps): React.JSX.El
     if (patientData?.readings) {
       setIsLoading(false)
     }
+    checkAndCreateDailyReminder(patientData.id)
   }, [patientData])
 
   // Load recommendations when the recommendations tab is accessed
