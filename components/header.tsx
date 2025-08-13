@@ -7,8 +7,9 @@ import { useAuth } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 
 // Icons
-import { Bell, User, LogOut } from "lucide-react";
+import { User, LogOut } from 'lucide-react';
 import { useRouter, usePathname } from "next/navigation";
+import NotificationPanel from "./notifications/notification-panel";
 
 interface HeaderProps {
   userType: "patient" | "doctor";
@@ -45,9 +46,8 @@ export default function Header({ userType }: HeaderProps) {
           <span className="text-sm text-muted-foreground">{portalLabel}</span>
         </div>
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" aria-label="Notifications">
-            <Bell className="h-5 w-5" />
-          </Button>
+          {/* <CHANGE> Replaced the non-functional Bell button with the new NotificationPanel component */}
+          <NotificationPanel userType={userType} />
           <Button variant="ghost" size="icon" aria-label="User profile" onClick={handleProfileVisit}>
             <User className="h-5 w-5" />
           </Button>
