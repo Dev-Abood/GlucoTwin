@@ -358,38 +358,6 @@ export default function Dashboard({ patientData }: DashboardProps): React.JSX.El
                       </CardContent>
                     </Card>
                   </section>
-
-                  {/* Reminders Section */}
-                  <section>
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Reminders</CardTitle>
-                        <CardDescription>Important tasks and reminders</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-4">
-                            <div className="rounded-full bg-primary/10 p-2">
-                              <Bell className="h-4 w-4 text-primary" />
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-sm font-medium leading-none">Record fasting glucose</p>
-                              <p className="text-sm text-muted-foreground">Tomorrow morning</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="rounded-full bg-primary/10 p-2">
-                              <Bell className="h-4 w-4 text-primary" />
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-sm font-medium leading-none">Upcoming appointment with Dr. Abdulla</p>
-                              <p className="text-sm text-muted-foreground">Next appointment in 4 days</p>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </section>
                 </TabsContent>
 
                 {/* Recommendations Tab Content */}
