@@ -30,6 +30,8 @@ export default function Header({ userType }: HeaderProps) {
   };
 
   const isDoctorRoute =
+    pathname.startsWith("/doctor") ||
+    pathname.startsWith("/doctor/messages") ||
     pathname.startsWith("/doctor/dashboard") ||
     pathname.startsWith("/doctor/patients") ||
     pathname.startsWith("/doctor/patient/");
