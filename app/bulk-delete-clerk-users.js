@@ -1,3 +1,4 @@
+//! DONT TOUCH THIS FILE
 const { clerkClient } = require('@clerk/clerk-sdk-node');
 
 async function deleteAllUsers() {
