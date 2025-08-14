@@ -251,7 +251,7 @@ export async function createNewRecommendationNotificationForPatient(
   recommendationId: string
 ) {
   const title = `New Recommendation from ${doctorName}`;
-  const message = `Dr. ${doctorName} has set a new personalized recommendation: "${recommendationTitle}". Please check it out in your dashboard.`;
+  const message = `${doctorName} has set a new personalized recommendation: "${recommendationTitle}". Please check it out in your dashboard.`;
 
   return await prisma.notification.create({
     data: {

@@ -1,8 +1,10 @@
 "use server"
 
+import { createNewRecommendationNotificationForPatient } from "@/components/notifications/notification-actions"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@clerk/nextjs/server"
 import { revalidatePath } from "next/cache"
+import { truncateByDomain } from "recharts/types/util/ChartUtils"
 import { z } from "zod"
 
 type ActionResult = {
@@ -39,23 +41,15 @@ export async function createRecommendation(data: CreateRecommendationInput): Pro
     console.log("Authenticated user ID:", userId)
 
     if (!userId) {
-      return {
-        success: false,
-        error: "Authentication required",
-      }
+      return { success: false, error: "Authentication required" }
     }
 
-    // Validate input data
     const validatedData = recommendationSchema.parse({
       title: data.title,
       description: data.description,
     })
 
-    console.log("Validated data:", validatedData)
-    console.log("Patient assignment ID:", data.patientAssignmentId)
-
-    // For now, let's skip the assignment verification to test if the basic creation works
-    // We'll create the recommendation directly
+    // Create the recommendation
     const recommendation = await prisma.recommendation.create({
       data: {
         patientAssignmentId: data.patientAssignmentId,
@@ -64,7 +58,28 @@ export async function createRecommendation(data: CreateRecommendationInput): Pro
       },
     })
 
-    console.log("Created recommendation:", recommendation)
+    // ⬇️ New: fetch assignment to notify the correct patient
+    const assignment = await prisma.patientAssignment.findUnique({
+      where: { id: data.patientAssignmentId },
+      include: { doctor: { select: { name: true } } },
+    })
+
+    if (assignment?.patientId) {
+      const doctorName = assignment.doctor?.name ?? "Your doctor"
+      // Fire-and-forget with safety
+      try {
+        await createNewRecommendationNotificationForPatient(
+          assignment.patientId,
+          doctorName,
+          validatedData.title,
+          recommendation.id
+        )
+      } catch (e) {
+        console.error("Failed to create NEW_RECOMMENDATION notification (create):", e)
+      }
+    } else {
+      console.warn("No patientId found for assignment:", data.patientAssignmentId)
+    }
 
     revalidatePath("/doctor/patients")
 
@@ -75,20 +90,16 @@ export async function createRecommendation(data: CreateRecommendationInput): Pro
     }
   } catch (error) {
     console.error("Error creating recommendation:", error)
-
     if (error instanceof z.ZodError) {
-      return {
-        success: false,
-        error: error.errors[0]?.message || "Invalid input data",
-      }
+      return { success: false, error: error.errors[0]?.message || "Invalid input data" }
     }
-
     return {
       success: false,
       error: `Failed to create recommendation: ${error instanceof Error ? error.message : "Unknown error"}`,
     }
   }
 }
+
 
 /**
  * Updates an existing recommendation
@@ -98,18 +109,27 @@ export async function updateRecommendation(data: UpdateRecommendationInput): Pro
     console.log("Updating recommendation with data:", data)
 
     const { userId } = await auth()
-
     if (!userId) {
-      return {
-        success: false,
-        error: "Authentication required",
-      }
+      return { success: false, error: "Authentication required" }
     }
 
-    // Validate input data
     const validatedData = updateRecommendationSchema.parse(data)
 
-    // Update the recommendation directly for now
+    // ⬇️ New: fetch the existing rec’s assignment to know whom to notify
+    const existing = await prisma.recommendation.findUnique({
+      where: { id: validatedData.id },
+      include: {
+        patientAssignment: {
+          include: { doctor: { select: { name: true } } },
+        },
+      },
+    })
+
+    if (!existing?.patientAssignment?.patientId) {
+      return { success: false, error: "Related patient assignment not found" }
+    }
+
+    // Update the recommendation
     const updatedRecommendation = await prisma.recommendation.update({
       where: { id: validatedData.id },
       data: {
@@ -118,6 +138,18 @@ export async function updateRecommendation(data: UpdateRecommendationInput): Pro
         updatedAt: new Date(),
       },
     })
+
+    // ⬇️ New: notify patient about the updated recommendation
+    try {
+      await createNewRecommendationNotificationForPatient(
+        existing.patientAssignment.patientId,
+        existing.patientAssignment.doctor?.name ?? "Your doctor",
+        updatedRecommendation.title,
+        updatedRecommendation.id
+      )
+    } catch (e) {
+      console.error("Failed to create NEW_RECOMMENDATION notification (update):", e)
+    }
 
     revalidatePath("/doctor/patients")
 
@@ -128,14 +160,9 @@ export async function updateRecommendation(data: UpdateRecommendationInput): Pro
     }
   } catch (error) {
     console.error("Error updating recommendation:", error)
-
     if (error instanceof z.ZodError) {
-      return {
-        success: false,
-        error: error.errors[0]?.message || "Invalid input data",
-      }
+      return { success: false, error: error.errors[0]?.message || "Invalid input data" }
     }
-
     return {
       success: false,
       error: `Failed to update recommendation: ${error instanceof Error ? error.message : "Unknown error"}`,
