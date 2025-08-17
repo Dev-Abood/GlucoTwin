@@ -38,8 +38,12 @@ def process_gdm_data(file_path='GDM_UOS.xlsx', output_file='GDM_UOS_NoC.csv'):
         print(f"NGDM sheet: {ngdm_data.shape[0]} rows, {ngdm_data.shape[1]} columns")
         
         # cleaning column names (remove any extra spaces and handle unnamed columns)
-        gdm_data.columns = gdm_data.columns.astype(str)
-        ngdm_data.columns = ngdm_data.columns.astype(str)
+        gdm_data.columns = gdm_data.columns.astype(str).str.strip()
+        ngdm_data.columns = ngdm_data.columns.astype(str).str.strip()
+        
+        # Remove unnamed columns (these appear as 'Unnamed: X' when pandas reads empty columns)
+        gdm_data = gdm_data.loc[:, ~gdm_data.columns.str.contains('^Unnamed')]
+        ngdm_data = ngdm_data.loc[:, ~ngdm_data.columns.str.contains('^Unnamed')]
         
         # display column names for verification
         gdm_columns = list(gdm_data.columns)
@@ -48,22 +52,38 @@ def process_gdm_data(file_path='GDM_UOS.xlsx', output_file='GDM_UOS_NoC.csv'):
         print("\nGDM columns before:", gdm_columns)
         print("\nNGDM columns before:", ngdm_columns)
         
-        # Columns to remove
+        # Columns to remove (cleaned names without trailing spaces)
         columns_to_remove = [
             'socioeconomic status', 
-            'Mode of Delivery'
+            'Mode of Delivery',
+            'HbA1c Levels at Delivery:',
+            'HbA1c Levels at Diagnosis (if using insulin):',
+            'Gestational Age at Diagnosis of GDM (Months)',
+            'Patients'
         ]
         
-        # double checking for specified columns if they exist, then removing them
-        
+        # Remove the specified columns if they exist (with flexible matching)
         for col in columns_to_remove:
-            if col in gdm_data.columns:
-                gdm_data = gdm_data.drop(columns=[col])
-                print(f"Removed '{col}' from GDM data")
+            # Check in GDM data
+            matching_cols_gdm = [c for c in gdm_data.columns if c.strip() == col.strip()]
+            for match in matching_cols_gdm:
+                gdm_data = gdm_data.drop(columns=[match])
+                print(f"Removed '{match}' from GDM data")
             
-            if col in ngdm_data.columns:
-                ngdm_data = ngdm_data.drop(columns=[col])
-                print(f"Removed '{col}' from NGDM data")
+            # Check in NGDM data  
+            matching_cols_ngdm = [c for c in ngdm_data.columns if c.strip() == col.strip()]
+            for match in matching_cols_ngdm:
+                ngdm_data = ngdm_data.drop(columns=[match])
+                print(f"Removed '{match}' from NGDM data")
+        
+        # Add Type of treatment to NGDM data
+        # GDM patients have actual treatments, NGDM patients should be marked as "No Treatment"
+        if 'Type of treatment' not in ngdm_data.columns:
+            ngdm_data['Type of treatment'] = 'No Treatment'
+        
+        print(f"\nColumns after special handling:")
+        print(f"GDM columns: {list(gdm_data.columns)}")
+        print(f"NGDM columns: {list(ngdm_data.columns)}")
         
         # find common columns to ensure consistent structure to avoid keyErrors
         common_columns = list(
@@ -71,6 +91,7 @@ def process_gdm_data(file_path='GDM_UOS.xlsx', output_file='GDM_UOS_NoC.csv'):
         )
         
         print(f"\nCommon columns: {len(common_columns)} \n")
+        print(f"Common columns list: {common_columns}")
         
         #* keep only common columns for both datasets
         gdm_common = gdm_data[common_columns].copy()
@@ -117,6 +138,6 @@ if __name__ == "__main__":
     success = process_gdm_data()
     
     if success:
-        print("\nprocessing completed")
+        print("\nProcessing completed")
     else:
-        print("\nprocessing failed")
+        print("\nProcessing failed")

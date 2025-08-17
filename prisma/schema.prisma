@@ -26,6 +26,81 @@ model Patient {
   patientAssignments PatientAssignment[]
   readings           Reading[]
   notifications      Notification[]
+  clinicalInfo       ClinicalInformation? // One-to-one relationship with clinical data
+}
+
+// Clinical Information Table/Relation Creation
+// Stores comprehensive clinical data for GDM patients
+model ClinicalInformation {
+  id                    String   @id @default(uuid())
+  patientId             String   @unique // Foreign key to Patient
+  
+  // Treatment and Demographics
+  typeOfTreatment       String? // e.g., "Metformin", "Insulin", etc.
+  nationality           String?
+  
+  // Physical Measurements
+  bmi         Float? // BMI at baseline (Kg/m^2)
+  weight                Float? // Weight in Kg
+  height                Float? // Height
+  weightGainDuringPregnancy Float? // Weight gain during pregnancy (Kg)
+  
+  
+  // Glucose and Lab Values
+  fastingBloodGlucose   Float? // Fasting blood glucose level
+  oneHour75Glucose        Float? // 1 hour after 75g of glucose
+  twoHour75Glucose        Float? // 2 hours after 75g of glucose
+  
+  // Clinical Conditions
+  hypertensiveDisorders String? // Yes/No for hypertensive disorders
+  
+  // Vital Signs
+  pulseHeartRate        Float? // Pulse/heart rate bt/min
+  bpSystolic            Float? // BP Systolic mm/Hg
+  bpDiastolic           Float? // BP Diastolic mm/Hg
+
+  
+  // AI Prediction Results
+  aiPredictions         GDMPrediction[] 
+  
+  // Metadata
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  // Relationships
+  patient               Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  @@index([patientId])
+  @@index([typeOfTreatment])
+  @@map("clinical_information")
+}
+
+// AI Prediction Results Table
+// Stores predictions from your Flask ML service
+model GDMPrediction {
+  id                    String   @id @default(uuid())
+  clinicalInfoId        String   // Links to ClinicalInformation
+  
+  // Prediction Results
+  predictedGDMRisk      Float    // Risk score (0.0 to 1.0)
+  riskCategory          GDMRiskLevel // LOW, MODERATE, HIGH, CRITICAL
+  confidence            Float    // Model confidence (0.0 to 1.0)
+  
+  // Model Information
+  modelVersion          String   // Track which ML model version was used
+  featuresUsed          Json     // Store which features were used for this prediction
+  
+  // Timestamps
+  predictedAt           DateTime @default(now())
+  isActive              Boolean  @default(true) // Latest prediction is active
+  
+  // Relationships
+  clinicalInformation   ClinicalInformation @relation(fields: [clinicalInfoId], references: [id], onDelete: Cascade)
+  
+  @@index([clinicalInfoId, isActive])
+  @@index([predictedAt])
+  @@index([riskCategory])
+  @@map("gdm_predictions")
 }
 
 // Doctor Table/Relation Creation
@@ -59,7 +134,6 @@ model PatientAssignment {
   messages        Message[]
   recommendations Recommendation[]
 }
-
 
 model Recommendation {
   id                  String   @id @default(uuid())
@@ -132,7 +206,6 @@ model Notification {
   @@map("notifications")
 }
 
-
 enum NotificationType {
   DANGEROUS_READING    // For glucose readings that are HIGH or ELEVATED
   NEW_MESSAGE         // For new messages between doctor and patient
@@ -161,4 +234,11 @@ enum ReadingStatus {
   NORMAL
   HIGH
   ELEVATED
+}
+
+enum GDMRiskLevel {
+  LOW        // Low risk (0.0-0.3)
+  MODERATE   // Moderate risk (0.3-0.6)
+  HIGH       // High risk (0.6-0.8)
+  CRITICAL   // Critical risk (0.8-1.0)
 }
