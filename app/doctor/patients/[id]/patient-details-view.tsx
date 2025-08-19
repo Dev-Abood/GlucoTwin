@@ -1,32 +1,14 @@
-"use client";
+"use client"
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { ArrowLeft, Settings } from "lucide-react";
+import { useState, useEffect } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { ArrowLeft, Settings, FileText } from "lucide-react"
 import {
   LineChart,
   Line,
@@ -37,223 +19,209 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   Legend,
-} from "recharts";
-import { format } from "date-fns";
-import Header from "@/components/header";
-import Sidebar from "@/components/sidebar";
-import { RecommendationsModal } from "./recommendations-modal";
+} from "recharts"
+import { format } from "date-fns"
+import Header from "@/components/header"
+import Sidebar from "@/components/sidebar"
+import { RecommendationsModal } from "./recommendations-modal"
 
 type Reading = {
-  id: string;
-  date: Date;
-  time: string;
-  type: string;
-  level: number;
-  status: string;
-  notes?: string | null;
-};
-
-type DayReadings = {
-  date: string;
-  BeforeBreakfast: { level: number; status: string; notes?: string | null } | null;
-  AfterBreakfast:  { level: number; status: string; notes?: string | null } | null;
-  BeforeLunch:     { level: number; status: string; notes?: string | null } | null;
-  AfterLunch:      { level: number; status: string; notes?: string | null } | null;
-  BeforeDinner:    { level: number; status: string; notes?: string | null } | null;
-  AfterDinner:     { level: number; status: string; notes?: string | null } | null;
-};
-
-type GlucoseChartData = {
-  date: string;
-  beforeBreakfast: number | null;
-  afterBreakfast: number | null;
-  beforeLunch: number | null;
-  afterLunch: number | null;
-  beforeDinner: number | null;
-  afterDinner: number | null;
-};
-
-type PatientData = {
-  id: string;
-  patientId: string;
-  name: string;
-  age: number;
-  dateOfBirth: Date;
-  term: number;
-  dueDate: Date;
-  readings: Reading[];
-  patientAssignments: Array<{
-    id: string;
-    lastVisitDate: Date | null;
-    addedDate: Date;
-    hasMessageForDoctor: boolean;
-  }>;
-};
-
-interface PatientDetailsViewProps {
-  patientData: PatientData | null;
-  lastVisit: Date | null;
+  id: string
+  date: Date
+  time: string
+  type: string
+  level: number
+  status: string
+  notes?: string | null
 }
 
-export default function PatientDetailsView({
-  patientData,
-  lastVisit,
-}: PatientDetailsViewProps) {
-  const router = useRouter();
-  const [isRecommendationsModalOpen, setIsRecommendationsModalOpen] = useState(false);
-  const [readingsByDate, setReadingsByDate] = useState<DayReadings[]>([]);
-  const [chartData, setChartData] = useState<GlucoseChartData[]>([]);
+type DayReadings = {
+  date: string
+  BeforeBreakfast: { level: number; status: string; notes?: string | null } | null
+  AfterBreakfast: { level: number; status: string; notes?: string | null } | null
+  BeforeLunch: { level: number; status: string; notes?: string | null } | null
+  AfterLunch: { level: number; status: string; notes?: string | null } | null
+  BeforeDinner: { level: number; status: string; notes?: string | null } | null
+  AfterDinner: { level: number; status: string; notes?: string | null } | null
+}
+
+type GlucoseChartData = {
+  date: string
+  beforeBreakfast: number | null
+  afterBreakfast: number | null
+  beforeLunch: number | null
+  afterLunch: number | null
+  beforeDinner: number | null
+  afterDinner: number | null
+}
+
+type PatientData = {
+  id: string
+  patientId: string
+  name: string
+  age: number
+  dateOfBirth: Date
+  term: number
+  dueDate: Date
+  readings: Reading[]
+  patientAssignments: Array<{
+    id: string
+    lastVisitDate: Date | null
+    addedDate: Date
+    hasMessageForDoctor: boolean
+  }>
+}
+
+interface PatientDetailsViewProps {
+  patientData: PatientData | null
+  lastVisit: Date | null
+}
+
+export default function PatientDetailsView({ patientData, lastVisit }: PatientDetailsViewProps) {
+  const router = useRouter()
+  const [isRecommendationsModalOpen, setIsRecommendationsModalOpen] = useState(false)
+  const [readingsByDate, setReadingsByDate] = useState<DayReadings[]>([])
+  const [chartData, setChartData] = useState<GlucoseChartData[]>([])
 
   // Colors aligned with your main legend (adjust if you have a shared palette)
   const series = [
     { key: "beforeBreakfast", name: "Before Breakfast", color: "#f78da7" }, // soft pink
-    { key: "afterBreakfast",  name: "After Breakfast",  color: "#8e44ad" }, // purple
-    { key: "beforeLunch",     name: "Before Lunch",     color: "#8b0000" }, // dark red
-    { key: "afterLunch",      name: "After Lunch",      color: "#1f3a93" }, // deep blue
-    { key: "beforeDinner",    name: "Before Dinner",    color: "#c39bd3" }, // light purple
-    { key: "afterDinner",     name: "After Dinner",     color: "#7ed6df" }, // light cyan
-  ] as const;
+    { key: "afterBreakfast", name: "After Breakfast", color: "#8e44ad" }, // purple
+    { key: "beforeLunch", name: "Before Lunch", color: "#8b0000" }, // dark red
+    { key: "afterLunch", name: "After Lunch", color: "#1f3a93" }, // deep blue
+    { key: "beforeDinner", name: "Before Dinner", color: "#c39bd3" }, // light purple
+    { key: "afterDinner", name: "After Dinner", color: "#7ed6df" }, // light cyan
+  ] as const
 
   useEffect(() => {
-    if (!patientData?.readings) return;
+    if (!patientData?.readings) return
 
-    const groupedReadings = patientData.readings.reduce(
-      (acc: Record<string, DayReadings>, reading: Reading) => {
-        const dateStr = reading.date.toISOString().slice(0, 10);
+    const groupedReadings = patientData.readings.reduce((acc: Record<string, DayReadings>, reading: Reading) => {
+      const dateStr = reading.date.toISOString().slice(0, 10)
 
-        if (!acc[dateStr]) {
-          acc[dateStr] = {
-            date: dateStr,
-            BeforeBreakfast: null,
-            AfterBreakfast: null,
-            BeforeLunch: null,
-            AfterLunch: null,
-            BeforeDinner: null,
-            AfterDinner: null,
-          };
+      if (!acc[dateStr]) {
+        acc[dateStr] = {
+          date: dateStr,
+          BeforeBreakfast: null,
+          AfterBreakfast: null,
+          BeforeLunch: null,
+          AfterLunch: null,
+          BeforeDinner: null,
+          AfterDinner: null,
         }
+      }
 
-        const readingData = {
-          level: reading.level,
-          status: reading.status,
-          notes: reading.notes,
-        };
+      const readingData = {
+        level: reading.level,
+        status: reading.status,
+        notes: reading.notes,
+      }
 
-        switch (reading.type) {
-          case "BEFORE_BREAKFAST":
-            acc[dateStr].BeforeBreakfast = readingData;
-            break;
-          case "AFTER_BREAKFAST":
-            acc[dateStr].AfterBreakfast = readingData;
-            break;
-          case "BEFORE_LUNCH":
-            acc[dateStr].BeforeLunch = readingData;
-            break;
-          case "AFTER_LUNCH":
-            acc[dateStr].AfterLunch = readingData;
-            break;
-          case "BEFORE_DINNER":
-            acc[dateStr].BeforeDinner = readingData;
-            break;
-          case "AFTER_DINNER":
-            acc[dateStr].AfterDinner = readingData;
-            break;
-          default:
-            console.error("Reading type not defined:", reading.type);
-        }
+      switch (reading.type) {
+        case "BEFORE_BREAKFAST":
+          acc[dateStr].BeforeBreakfast = readingData
+          break
+        case "AFTER_BREAKFAST":
+          acc[dateStr].AfterBreakfast = readingData
+          break
+        case "BEFORE_LUNCH":
+          acc[dateStr].BeforeLunch = readingData
+          break
+        case "AFTER_LUNCH":
+          acc[dateStr].AfterLunch = readingData
+          break
+        case "BEFORE_DINNER":
+          acc[dateStr].BeforeDinner = readingData
+          break
+        case "AFTER_DINNER":
+          acc[dateStr].AfterDinner = readingData
+          break
+        default:
+          console.error("Reading type not defined:", reading.type)
+      }
 
-        return acc;
-      },
-      {}
-    );
+      return acc
+    }, {})
 
     const sortedReadings = Object.values(groupedReadings).sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    )
 
-    setReadingsByDate(sortedReadings);
+    setReadingsByDate(sortedReadings)
 
-    const last7Days = sortedReadings.slice(0, 7).reverse();
+    const last7Days = sortedReadings.slice(0, 7).reverse()
     const chartFormatData: GlucoseChartData[] = last7Days.map((day) => ({
       date: format(new Date(day.date), "MM/dd"),
       beforeBreakfast: day.BeforeBreakfast?.level ?? null,
-      afterBreakfast:  day.AfterBreakfast?.level ?? null,
-      beforeLunch:     day.BeforeLunch?.level ?? null,
-      afterLunch:      day.AfterLunch?.level ?? null,
-      beforeDinner:    day.BeforeDinner?.level ?? null,
-      afterDinner:     day.AfterDinner?.level ?? null,
-    }));
+      afterBreakfast: day.AfterBreakfast?.level ?? null,
+      beforeLunch: day.BeforeLunch?.level ?? null,
+      afterLunch: day.AfterLunch?.level ?? null,
+      beforeDinner: day.BeforeDinner?.level ?? null,
+      afterDinner: day.AfterDinner?.level ?? null,
+    }))
 
-    setChartData(chartFormatData);
-  }, [patientData]);
+    setChartData(chartFormatData)
+  }, [patientData])
 
-  const determinePatientStatus = ():
-    | "NORMAL"
-    | "ELEVATED"
-    | "HIGH"
-    | "unknown" => {
-    const readings = patientData?.readings;
-    if (!readings || readings.length === 0) return "unknown";
+  const determinePatientStatus = (): "NORMAL" | "ELEVATED" | "HIGH" | "unknown" => {
+    const readings = patientData?.readings
+    if (!readings || readings.length === 0) return "unknown"
 
-    let hasHigh = false;
-    let hasElevated = false;
+    let hasHigh = false
+    let hasElevated = false
 
     for (const reading of readings) {
-      const status = reading.status.toUpperCase();
+      const status = reading.status.toUpperCase()
 
       if (status === "HIGH") {
-        hasHigh = true;
-        break;
+        hasHigh = true
+        break
       } else if (status === "ELEVATED") {
-        hasElevated = true;
+        hasElevated = true
       }
     }
 
-    if (hasHigh) return "HIGH";
-    if (hasElevated) return "ELEVATED";
-    return "NORMAL";
-  };
+    if (hasHigh) return "HIGH"
+    if (hasElevated) return "ELEVATED"
+    return "NORMAL"
+  }
 
-  const patientStatus = determinePatientStatus();
+  const patientStatus = determinePatientStatus()
 
-  const formatDate = (date: Date) => format(new Date(date), "MMM d, yyyy");
+  const formatDate = (date: Date) => format(new Date(date), "MMM d, yyyy")
 
   const getStatusBadge = (status: string) => {
     switch (status.toUpperCase()) {
       case "NORMAL":
-        return <Badge variant="outline">Normal</Badge>;
+        return <Badge variant="outline">Normal</Badge>
       case "ELEVATED":
-        return <Badge variant="secondary">Elevated</Badge>;
+        return <Badge variant="secondary">Elevated</Badge>
       case "HIGH":
-        return <Badge variant="destructive">High</Badge>;
+        return <Badge variant="destructive">High</Badge>
       default:
-        return <Badge variant="outline">Unknown</Badge>;
+        return <Badge variant="outline">Unknown</Badge>
     }
-  };
+  }
 
-  const getReadingClass = (
-    readingData: { level: number; status: string; notes?: string | null } | null
-  ) => {
-    if (!readingData) return "";
+  const getReadingClass = (readingData: { level: number; status: string; notes?: string | null } | null) => {
+    if (!readingData) return ""
 
-    const status = readingData.status.toUpperCase();
+    const status = readingData.status.toUpperCase()
     switch (status) {
       case "HIGH":
-        return "text-red-500 font-medium";
+        return "text-red-500 font-medium"
       case "ELEVATED":
-        return "text-amber-600 font-medium";
+        return "text-amber-600 font-medium"
       case "NORMAL":
-        return "text-green-600";
+        return "text-green-600"
       default:
-        return "";
+        return ""
     }
-  };
+  }
 
-  const renderReadingCell = (
-    readingData: { level: number; status: string; notes?: string | null } | null
-  ) => {
+  const renderReadingCell = (readingData: { level: number; status: string; notes?: string | null } | null) => {
     if (!readingData) {
-      return <span className="text-muted-foreground">-</span>;
+      return <span className="text-muted-foreground">-</span>
     }
 
     return (
@@ -261,37 +229,31 @@ export default function PatientDetailsView({
         <Tooltip>
           <TooltipTrigger asChild>
             <div className="flex flex-col items-center cursor-help">
-              <span className={getReadingClass(readingData)}>
-                {readingData.level.toFixed(2)}
-              </span>
+              <span className={getReadingClass(readingData)}>{readingData.level.toFixed(2)}</span>
               <div className="mt-1">{getStatusBadge(readingData.status)}</div>
             </div>
           </TooltipTrigger>
           <TooltipContent>
-            <p className="max-w-xs">
-              {readingData.notes || "No note on this reading"}
-            </p>
+            <p className="max-w-xs">{readingData.notes || "No note on this reading"}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-    );
-  };
+    )
+  }
 
   if (!patientData) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Patient not found</h1>
-          <Button onClick={() => router.push("/doctor/patients")}>
-            Return to Patients List
-          </Button>
+          <Button onClick={() => router.push("/doctor/patients")}>Return to Patients List</Button>
         </div>
       </div>
-    );
+    )
   }
 
   // Get the patient assignment ID for the recommendations modal
-  const patientAssignmentId = patientData.patientAssignments[0]?.id || "";
+  const patientAssignmentId = patientData.patientAssignments[0]?.id || ""
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -320,25 +282,31 @@ export default function PatientDetailsView({
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Glucose Readings History</CardTitle>
-                    <CardDescription>
-                      All recorded readings for {patientData.name}
-                    </CardDescription>
+                    <CardDescription>All recorded readings for {patientData.name}</CardDescription>
                   </div>
-                  <Button
-                    onClick={() => setIsRecommendationsModalOpen(true)}
-                    className="bg-primary hover:bg-primary/90"
-                    disabled={!patientAssignmentId}
-                  >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Set Recommendations
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => router.push(`/doctor/patients/${patientData.id}/clinical-info`)}
+                      variant="outline"
+                      className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Set Clinical Information
+                    </Button>
+                    <Button
+                      onClick={() => setIsRecommendationsModalOpen(true)}
+                      className="bg-primary hover:bg-primary/90"
+                      disabled={!patientAssignmentId}
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      Set Recommendations
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
                 {readingsByDate.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No readings available
-                  </div>
+                  <div className="text-center py-8 text-muted-foreground">No readings available</div>
                 ) : (
                   <div className="overflow-x-auto">
                     <Table>
@@ -368,9 +336,7 @@ export default function PatientDetailsView({
                       <TableBody>
                         {readingsByDate.map((dayReadings) => (
                           <TableRow key={dayReadings.date}>
-                            <TableCell className="font-medium">
-                              {format(new Date(dayReadings.date), "EEEE")}
-                            </TableCell>
+                            <TableCell className="font-medium">{format(new Date(dayReadings.date), "EEEE")}</TableCell>
                             <TableCell className="font-medium">
                               {format(new Date(dayReadings.date), "MMM d, yyyy")}
                             </TableCell>
@@ -380,18 +346,10 @@ export default function PatientDetailsView({
                             <TableCell className="text-center">
                               {renderReadingCell(dayReadings.AfterBreakfast)}
                             </TableCell>
-                            <TableCell className="text-center">
-                              {renderReadingCell(dayReadings.BeforeLunch)}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {renderReadingCell(dayReadings.AfterLunch)}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {renderReadingCell(dayReadings.BeforeDinner)}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {renderReadingCell(dayReadings.AfterDinner)}
-                            </TableCell>
+                            <TableCell className="text-center">{renderReadingCell(dayReadings.BeforeLunch)}</TableCell>
+                            <TableCell className="text-center">{renderReadingCell(dayReadings.AfterLunch)}</TableCell>
+                            <TableCell className="text-center">{renderReadingCell(dayReadings.BeforeDinner)}</TableCell>
+                            <TableCell className="text-center">{renderReadingCell(dayReadings.AfterDinner)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -433,9 +391,7 @@ export default function PatientDetailsView({
                     </div>
                     <div>
                       <p className="text-sm font-medium">Last Visit</p>
-                      <p className="text-lg">
-                        {lastVisit ? formatDate(lastVisit) : "No visits recorded"}
-                      </p>
+                      <p className="text-lg">{lastVisit ? formatDate(lastVisit) : "No visits recorded"}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -518,5 +474,5 @@ export default function PatientDetailsView({
         />
       )}
     </div>
-  );
+  )
 }

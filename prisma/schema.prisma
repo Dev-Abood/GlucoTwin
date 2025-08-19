@@ -36,7 +36,6 @@ model ClinicalInformation {
   patientId             String   @unique // Foreign key to Patient
   
   // Treatment and Demographics
-  typeOfTreatment       String? // e.g., "Metformin", "Insulin", etc.
   nationality           String?
   
   // Physical Measurements
@@ -71,7 +70,6 @@ model ClinicalInformation {
   patient               Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
   
   @@index([patientId])
-  @@index([typeOfTreatment])
   @@map("clinical_information")
 }
 
