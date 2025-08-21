@@ -17,7 +17,7 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for Next.js application
 
 class GDMPredictor:
-    def __init__(self, model_path='model.pkl', scaler_path='scaler.pkl'):
+    def __init__(self, model_path='/python-scripts/model.pkl', scaler_path='/python-scripts/scaler.pkl'):
         # Initialize predictor variables
         self.model = None 
         self.scaler = None
