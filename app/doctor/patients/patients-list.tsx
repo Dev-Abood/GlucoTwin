@@ -28,9 +28,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, CheckCircle2 } from "lucide-react";
+import { Search, CheckCircle2, AlertTriangle, Shield, TrendingUp, Zap } from "lucide-react";
 import Header from "@/components/header";
 import Sidebar from "@/components/sidebar";
+
+// Types for prediction data
+type GDMRiskLevel = "LOW" | "MODERATE" | "HIGH" | "CRITICAL";
+
+type GDMPrediction = {
+  id: string;
+  predictedGDMRisk: number;
+  riskCategory: GDMRiskLevel;
+  confidence: number;
+  modelVersion: string;
+  // topInfluentialFeatures: string[]; // Comment out until migration
+  predictedAt: Date;
+};
 
 type PatientWithStatus = {
   id: string;
@@ -42,14 +55,17 @@ type PatientWithStatus = {
   hasMessageForDoctor: boolean;
   status: "NORMAL" | "ELEVATED" | "HIGH";
   lastVisitDate: Date;
+  prediction?: GDMPrediction; // Add prediction data
 };
 
 type StatusFilter = "all" | "NORMAL" | "ELEVATED" | "HIGH";
+type PredictionFilter = "all" | "LOW" | "MODERATE" | "HIGH" | "CRITICAL" | "no-prediction";
 
 interface PatientsListProps {
   doctorData: {
     name: string;
     patientAssignments: {
+      id: string; // Add missing id field
       patient: {
         id: string;
         name: string;
@@ -62,9 +78,21 @@ interface PatientsListProps {
         age: number;
         dateOfBirth: Date;
         term: number;
+        clinicalInfo: { // Change from optional to required but nullable
+          id: string;
+          aiPredictions: {
+            id: string;
+            predictedGDMRisk: number;
+            riskCategory: GDMRiskLevel;
+            confidence: number;
+            modelVersion: string;
+            // topInfluentialFeatures: string[]; // Comment out until migration
+            predictedAt: Date;
+          }[];
+        } | null; // Use null instead of undefined to match Prisma
       };
       lastVisitDate: Date;
-      hasMessageForDoctor: boolean; // now correctly defined here
+      hasMessageForDoctor: boolean;
     }[];
   };
 }
@@ -74,14 +102,16 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<StatusFilter>("all");
+  const [filterPrediction, setFilterPrediction] = useState<PredictionFilter>("all");
 
   useEffect(() => {
     if (doctorData) {
       setIsLoading(false);
+      console.log(doctorData)
     }
   }, [doctorData]);
 
-  // Process patient data: merge hasMessageForDoctor into patient object
+  // Process patient data: merge hasMessageForDoctor and prediction into patient object
   const patients: PatientWithStatus[] = useMemo(() => {
     return doctorData.patientAssignments.map(({ patient, lastVisitDate, hasMessageForDoctor }) => {
       let overallStatus: "NORMAL" | "ELEVATED" | "HIGH" = "NORMAL";
@@ -106,13 +136,19 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
         if (hasHigh) overallStatus = "HIGH";
         else if (hasElevated) overallStatus = "ELEVATED";
         else overallStatus = "NORMAL";
+
+        console.log(overallStatus)
       }
+
+      // Get the latest prediction - handle null clinicalInfo
+      const latestPrediction = patient.clinicalInfo?.aiPredictions?.[0];
 
       return {
         ...patient,
         hasMessageForDoctor,
         status: overallStatus,
         lastVisitDate,
+        prediction: latestPrediction,
       };
     });
   }, [doctorData.patientAssignments]);
@@ -139,16 +175,71 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
     }
   };
 
+  // Prediction badge UI
+  const getPredictionBadge = (prediction?: GDMPrediction) => {
+    if (!prediction) {
+      return <Badge variant="outline" className="text-muted-foreground">No Prediction</Badge>;
+    }
+
+    const { riskCategory, confidence } = prediction;
+    
+    switch (riskCategory) {
+      case "LOW":
+        return (
+          <Badge variant="outline" className="text-green-700 border-green-200 bg-green-50">
+            <Shield className="w-3 h-3 mr-1" />
+            Low Risk
+          </Badge>
+        );
+      case "MODERATE":
+        return (
+          <Badge variant="secondary" className="text-yellow-700 border-yellow-200 bg-yellow-50">
+            <TrendingUp className="w-3 h-3 mr-1" />
+            Moderate Risk
+          </Badge>
+        );
+      case "HIGH":
+        return (
+          <Badge variant="destructive" className="text-orange-700 border-orange-200 bg-orange-50">
+            <AlertTriangle className="w-3 h-3 mr-1" />
+            High Risk
+          </Badge>
+        );
+      case "CRITICAL":
+        return (
+          <Badge variant="destructive" className="text-red-700 border-red-200 bg-red-50">
+            <Zap className="w-3 h-3 mr-1" />
+            Critical Risk
+          </Badge>
+        );
+      default:
+        return <Badge variant="outline">Unknown</Badge>;
+    }
+  };
+
   // Filtering logic
   const filteredPatients = useMemo(() => {
     return patients.filter((patient) => {
       const search = searchTerm.toLowerCase().trim();
 
       const matchesStatus = filterStatus === "all" || patient.status === filterStatus;
+      
+      // Prediction filtering
+      let matchesPrediction = true;
+      if (filterPrediction !== "all") {
+        if (filterPrediction === "no-prediction") {
+          matchesPrediction = !patient.prediction;
+        } else {
+          matchesPrediction = patient.prediction?.riskCategory === filterPrediction;
+        }
+      }
 
-      if (!search) return matchesStatus;
+      if (!search) return matchesStatus && matchesPrediction;
 
       const displayStatus = patient.status.toLowerCase();
+      const predictionText = patient.prediction 
+        ? patient.prediction.riskCategory.toLowerCase() 
+        : "no prediction";
 
       const matchesSearch =
         patient.patientId.toLowerCase().includes(search) ||
@@ -158,13 +249,16 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
         patient.term.toString().includes(search) ||
         `${patient.term} weeks`.toLowerCase().includes(search) ||
         displayStatus.includes(search) ||
+        predictionText.includes(search) ||
         (patient.hasMessageForDoctor && "has message".includes(search)) ||
         (!patient.hasMessageForDoctor && "no message".includes(search)) ||
         formatDate(patient.lastVisitDate).toLowerCase().includes(search);
 
-      return matchesSearch && matchesStatus;
+        console.log(patients, patient)
+
+      return matchesSearch && matchesStatus && matchesPrediction;
     });
-  }, [patients, searchTerm, filterStatus]);
+  }, [patients, searchTerm, filterStatus, filterPrediction]);
 
   const handleViewPatient = (id: string) => {
     router.push(`/doctor/patients/${id}`);
@@ -192,15 +286,15 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
               <CardHeader>
                 <CardTitle>Patient List</CardTitle>
                 <CardDescription>
-                  Manage and monitor your gestational diabetes patients
+                  Manage and monitor your gestational diabetes patients with AI predictions
                 </CardDescription>
 
-                {/* Search + Filter */}
+                {/* Search + Filters */}
                 <div className="flex flex-col gap-4 mt-4 sm:flex-row">
                   <div className="relative flex-1">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Search by name, ID, age, status, date, message status..."
+                      placeholder="Search by name, ID, age, status, prediction, date, message status..."
                       className="pl-8"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -224,6 +318,26 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Prediction Filter */}
+                  <div className="w-full sm:w-[200px]">
+                    <Select
+                      value={filterPrediction}
+                      onValueChange={(value) => setFilterPrediction(value as PredictionFilter)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Filter by prediction" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Predictions</SelectItem>
+                        <SelectItem value="LOW">Low Risk</SelectItem>
+                        <SelectItem value="MODERATE">Moderate Risk</SelectItem>
+                        <SelectItem value="HIGH">High Risk</SelectItem>
+                        <SelectItem value="CRITICAL">Critical Risk</SelectItem>
+                        <SelectItem value="no-prediction">No Prediction</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </CardHeader>
 
@@ -237,6 +351,7 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
                       <TableHead>Date of Birth</TableHead>
                       <TableHead>Term</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>AI Prediction</TableHead> {/* New column */}
                       <TableHead>Message</TableHead>
                       <TableHead>Last Visit</TableHead>
                       <TableHead></TableHead>
@@ -245,7 +360,7 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center py-4">
+                        <TableCell colSpan={10} className="text-center py-4">
                           <div className="flex justify-center items-center py-10">
                             <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary" />
                           </div>
@@ -253,7 +368,7 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
                       </TableRow>
                     ) : filteredPatients.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center py-4 text-muted-foreground">
+                        <TableCell colSpan={10} className="text-center py-4 text-muted-foreground">
                           No patients match your search criteria
                         </TableCell>
                       </TableRow>
@@ -266,6 +381,7 @@ export default function PatientsList({ doctorData }: PatientsListProps) {
                           <TableCell>{formatDate(patient.dateOfBirth)}</TableCell>
                           <TableCell>{patient.term} weeks</TableCell>
                           <TableCell>{getStatusBadge(patient.status)}</TableCell>
+                          <TableCell>{getPredictionBadge(patient.prediction)}</TableCell> {/* New cell */}
                           <TableCell>
                             {patient.hasMessageForDoctor ? (
                               <CheckCircle2 className="h-4 w-4 text-green-600" />

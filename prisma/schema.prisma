@@ -85,9 +85,10 @@ model GDMPrediction {
   confidence            Float    // Model confidence (0.0 to 1.0)
   
   // Model Information
-  modelVersion          String   // Track which ML model version was used
-  featuresUsed          Json     // Store which features were used for this prediction
-  
+  modelVersion          String    // Track which ML model version was used
+  featuresUsed          Json      // Store which features were used for this prediction
+  topInfluentialFeatures String[] // Store the top 5 feature names that influenced this prediction
+
   // Timestamps
   predictedAt           DateTime @default(now())
   isActive              Boolean  @default(true) // Latest prediction is active

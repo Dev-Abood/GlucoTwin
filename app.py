@@ -227,7 +227,7 @@ class GDMPredictor:
                 'confidence': round(confidence, 2),
                 'gdm_probability': round(gdm_probability, 2),
                 'factors': FS,  
-                'model_version': '1.0',
+                'model_version': 'The not so good one',
             }
 
             return result # return back result json object

@@ -7,11 +7,97 @@ import { clinicalInfoSchema } from "@/lib/clinical-info-val"
 
 const prisma = new PrismaClient()
 
+// Define the Flask API response type
+type FlaskApiResponse = {
+  prediction: 'GDM Risk' | 'No GDM Risk';
+  confidence: number;
+  gdm_probability: number;
+  factors: string[];
+  model_version: string;
+  apiResponseTime: number;
+}
+
+// Feature mapping for display purposes
+const FEATURE_DISPLAY_MAPPING: Record<string, string> = {
+  'oneHourGlucose': '1 Hour Glucose Level',
+  'bpSystolic': 'Systolic Blood Pressure',
+  'bmiBaseline': 'BMI (Body Mass Index)',
+  'fastingBloodGlucose': 'Fasting Blood Glucose',
+  'weightKg': 'Weight',
+  'pulseHeartRate': 'Pulse/Heart Rate',
+  'hypertensiveDisorders': 'Hypertensive Disorders',
+  'typeOfTreatment': 'Type of Treatment',
+  'twoHourGlucose': '2 Hour Glucose Level',
+  'nationality': 'Nationality',
+  'ageYears': 'Age',
+  'bpDiastolic': 'Diastolic Blood Pressure',
+  'height': 'Height',
+  'weightGainDuringPregnancy': 'Weight Gain During Pregnancy'
+}
+
+
+// Function to determine risk category based on probability
+function getRiskCategory(probability: number): 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL' {
+  if (probability <= 30) return 'LOW'
+  if (probability <= 60) return 'MODERATE'
+  if (probability <= 80) return 'HIGH'
+  return 'CRITICAL'
+}
+
+// Function to call Flask API for prediction
+async function callPredictionAPI(clinicalData: any, patientAge: number): Promise<FlaskApiResponse | null> {
+  try {
+    const payload = {
+      patientData: {
+        oneHourGlucose: clinicalData.oneHour75Glucose,
+        bpSystolic: clinicalData.bpSystolic,
+        bmiBaseline: clinicalData.bmi,
+        fastingBloodGlucose: clinicalData.fastingBloodGlucose,
+        weightKg: clinicalData.weight,
+        pulseHeartRate: clinicalData.pulseHeartRate,
+        hypertensiveDisorders: clinicalData.hypertensiveDisorders,
+        typeOfTreatment: 'No Treatment', // default value 
+        twoHourGlucose: clinicalData.twoHour75Glucose,
+        nationality: clinicalData.nationality,
+        ageYears: patientAge,
+        bpDiastolic: clinicalData.bpDiastolic,
+        height: clinicalData.height,
+        weightGainDuringPregnancy: clinicalData.weightGainDuringPregnancy
+      }
+    }
+
+    const response = await fetch(`${process.env.FLASK_API_URL}/predict`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+
+    if (!response.ok) {
+      console.error('Flask API error:', response.status, response.statusText)
+      return null
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error('Error calling prediction API:', error)
+    return null
+  }
+}
+
 async function getClinicalInfo(patientId: string) {
   try {
     return await prisma.clinicalInformation.findUnique({
       where: { patientId },
-      include: { patient: true },
+      include: { 
+        patient: true,
+        aiPredictions: {
+          where: { isActive: true },
+          orderBy: { predictedAt: 'desc' },
+          take: 1
+        }
+      },
     })
   } catch (error) {
     console.error("Error fetching clinical info:", error)
@@ -58,7 +144,7 @@ export async function createOrUpdateClinicalInfo(patientId: string, formData: Fo
     // The schema will handle all the transformation and validation
     const validatedData = clinicalInfoSchema.parse(rawData)
 
-     // --- Ensure BMI is derived on the server as well (safety) ---
+    // --- Ensure BMI is derived on the server as well (safety) ---
     const updatePayload: typeof validatedData & { bmi?: number } = { ...validatedData }
     const w = typeof validatedData.weight === "number" ? validatedData.weight : undefined
     const h = typeof validatedData.height === "number" ? validatedData.height : undefined
@@ -67,6 +153,16 @@ export async function createOrUpdateClinicalInfo(patientId: string, formData: Fo
       if (!Number.isNaN(bmi) && Number.isFinite(bmi)) {
         updatePayload.bmi = bmi
       }
+    }
+
+    // Get patient age for prediction API
+    const patient = await prisma.patient.findUnique({
+      where: { id: patientId },
+      select: { age: true }
+    })
+
+    if (!patient) {
+      throw new Error("Patient not found")
     }
 
     const clinicalInfo = await prisma.clinicalInformation.upsert({
@@ -83,11 +179,42 @@ export async function createOrUpdateClinicalInfo(patientId: string, formData: Fo
 
     console.log("Clinical info saved successfully:", clinicalInfo.id)
 
+    // Make AI prediction if we have sufficient data
+    const predictionResult = await callPredictionAPI(validatedData, patient.age)
+    
+    if (predictionResult) {
+      // Deactivate previous predictions
+      await prisma.gDMPrediction.updateMany({
+        where: { 
+          clinicalInfoId: clinicalInfo.id,
+          isActive: true 
+        },
+        data: { isActive: false }
+      })
+
+      // Create new prediction record
+      await prisma.gDMPrediction.create({
+        data: {
+          clinicalInfoId: clinicalInfo.id,
+          predictedGDMRisk: predictionResult.gdm_probability / 100, // Convert percentage to decimal
+          riskCategory: getRiskCategory(predictionResult.gdm_probability),
+          confidence: predictionResult.confidence / 100, // Convert percentage to decimal
+          modelVersion: predictionResult.model_version,
+          featuresUsed: predictionResult.factors, // Store as JSON
+          topInfluentialFeatures: predictionResult.factors, // Store the feature names
+          isActive: true
+        }
+      })
+
+      console.log("AI prediction saved successfully")
+    }
+
     revalidatePath(`/doctor/patients/${patientId}/clinical-info`)
     return {
       success: true,
       message: "Clinical information updated successfully",
       data: clinicalInfo,
+      predictionMade: !!predictionResult
     }
   } catch (error) {
     console.error("Error saving clinical info:", error)
@@ -157,8 +284,6 @@ export async function resetClinicalInfo(patientId: string) {
     }
   }
 }
-
-
 
 export async function bulkUpdateClinicalInfo(updates: Array<{ id: string; data: any }>) {
   try {

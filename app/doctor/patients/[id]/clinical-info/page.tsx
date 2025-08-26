@@ -5,12 +5,12 @@ import ClinicalInfoPage from "./clinical-info-page"
 
 interface PageProps {
   params: {
-    id: string  // This should match your folder name [id]
+    id: string
   }
 }
 
 export default async function Page({ params }: PageProps) {
-  const { id: patientId } = params  // Extract id and rename to patientId for clarity
+  const { id: patientId } = params
 
   try {
     // Fetch patient and clinical info in parallel

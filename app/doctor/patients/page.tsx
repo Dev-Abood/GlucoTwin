@@ -38,7 +38,30 @@ export default async function DoctorPatientsPage() {
                   type: true,
                   status: true,
                 },
-                take: 1, // latest reading
+              },
+                                // Include clinical information and AI predictions
+              clinicalInfo: {
+                select: {
+                  id: true,
+                  aiPredictions: {
+                    where: {
+                      isActive: true, // Get only the active/latest prediction
+                    },
+                    orderBy: {
+                      predictedAt: "desc",
+                    },
+                    select: {
+                      id: true,
+                      predictedGDMRisk: true,
+                      riskCategory: true,
+                      confidence: true,
+                      modelVersion: true,
+                      topInfluentialFeatures: true,
+                      predictedAt: true,
+                    },
+                    take: 1, // Get the most recent active prediction
+                  },
+                },
               },
             },
           },

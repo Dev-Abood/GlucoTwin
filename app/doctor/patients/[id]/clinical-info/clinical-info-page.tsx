@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useState, useEffect, startTransition } from "react"
+import { useMemo, useRef, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Save, FileText, Trash } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { ArrowLeft, Save, FileText, Trash, Brain, Shield, TrendingUp, AlertTriangle, Zap, Clock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Header from "@/components/header"
 import Sidebar from "@/components/sidebar"
@@ -35,6 +36,16 @@ interface Patient {
   age: number
 }
 
+interface GDMPrediction {
+  id: string
+  predictedGDMRisk: number
+  riskCategory: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL'
+  confidence: number
+  modelVersion: string
+  topInfluentialFeatures: string[]
+  predictedAt: Date
+}
+
 interface ClinicalInfo {
   id?: string
   patientId: string
@@ -52,6 +63,7 @@ interface ClinicalInfo {
   bpDiastolic?: number | null
   createdAt?: Date
   updatedAt?: Date
+  aiPredictions?: GDMPrediction[]
 }
 
 interface ClinicalInfoPageProps {
@@ -70,6 +82,32 @@ export default function ClinicalInfoPage({ patient, clinicalInfo }: ClinicalInfo
   const [weight, setWeight] = useState<string>(clinicalInfo?.weight?.toString() ?? "")
   const [height, setHeight] = useState<string>(clinicalInfo?.height?.toString() ?? "")
   const [computedBmi, setComputedBmi] = useState<string>(clinicalInfo?.bmi?.toFixed(1) ?? "")
+
+  // Feature mapping for display purposes
+  const FEATURE_DISPLAY_MAPPING: Record<string, string> = {
+    'oneHourGlucose': '1 Hour Glucose Level',
+    'bpSystolic': 'Systolic Blood Pressure',
+    'bmiBaseline': 'BMI (Body Mass Index)',
+    'fastingBloodGlucose': 'Fasting Blood Glucose',
+    'weightKg': 'Weight',
+    'pulseHeartRate': 'Pulse/Heart Rate',
+    'hypertensiveDisorders': 'Hypertensive Disorders',
+    'typeOfTreatment': 'Type of Treatment',
+    'twoHourGlucose': '2 Hour Glucose Level',
+    'nationality': 'Nationality',
+    'ageYears': 'Age',
+    'bpDiastolic': 'Diastolic Blood Pressure',
+    'height': 'Height',
+    'weightGainDuringPregnancy': 'Weight Gain During Pregnancy'
+  }
+
+  // Function to map feature names to display names
+  const mapFeaturesToDisplayNames = (features: string[]): string[] => {
+    return features.map(feature => FEATURE_DISPLAY_MAPPING[feature] || feature)
+  }
+
+  // Get the latest AI prediction
+  const latestPrediction = clinicalInfo?.aiPredictions?.[0]
 
   useEffect(() => {
     const w = parseFloat(weight)
@@ -98,16 +136,67 @@ export default function ClinicalInfoPage({ patient, clinicalInfo }: ClinicalInfo
     []
   )
 
-  /**
-   * Client-side validation: ensure NONE of the fields are empty before saving.
-   * - Country must NOT be "not_specified".
-   * - All numeric inputs must be provided (not blank).
-   * - BMI is derived; require weight+height and computed BMI be present.
-   */
+  // Function to get prediction badge
+  const getPredictionBadge = (prediction?: GDMPrediction) => {
+    if (!prediction) return null
+
+    const { riskCategory } = prediction
+    
+    switch (riskCategory) {
+      case "LOW":
+        return (
+          <Badge variant="outline" className="text-green-700 border-green-200 bg-green-50">
+            <Shield className="w-3 h-3 mr-1" />
+            Low Risk
+          </Badge>
+        )
+      case "MODERATE":
+        return (
+          <Badge variant="secondary" className="text-yellow-700 border-yellow-200 bg-yellow-50">
+            <TrendingUp className="w-3 h-3 mr-1" />
+            Moderate Risk
+          </Badge>
+        )
+      case "HIGH":
+        return (
+          <Badge variant="destructive" className="text-orange-700 border-orange-200 bg-orange-50">
+            <AlertTriangle className="w-3 h-3 mr-1" />
+            High Risk
+          </Badge>
+        )
+      case "CRITICAL":
+        return (
+          <Badge variant="destructive" className="text-red-700 border-red-200 bg-red-50">
+            <Zap className="w-3 h-3 mr-1" />
+            Critical Risk
+          </Badge>
+        )
+      default:
+        return <Badge variant="outline">Unknown</Badge>
+    }
+  }
+
+  // Function to get prediction message
+  const getPredictionMessage = (prediction?: GDMPrediction) => {
+    if (!prediction) return null
+
+    const riskPercentage = Math.round(prediction.predictedGDMRisk * 100)
+    const confidence = Math.round(prediction.confidence * 100)
+
+    const messages = {
+      LOW: `AI analysis indicates a low probability (${riskPercentage}%) of developing gestational diabetes mellitus. Continue regular monitoring and maintain healthy lifestyle practices.`,
+      MODERATE: `AI analysis suggests a moderate risk (${riskPercentage}%) for gestational diabetes mellitus. Close monitoring and preventive measures are recommended.`,
+      HIGH: `AI analysis indicates a high probability (${riskPercentage}%) of gestational diabetes mellitus. Immediate attention and comprehensive management plan recommended.`,
+      CRITICAL: `AI analysis shows a critical risk level (${riskPercentage}%) for gestational diabetes mellitus. Urgent medical intervention and intensive monitoring required.`
+    }
+
+    return messages[prediction.riskCategory] || "Unable to generate prediction message."
+  }
+
+  // Client-side validation
   const validateForm = (fd: FormData) => {
     const requiredFields: Array<{ name: string; label: string; type: "text" | "number" | "select"; inputId?: string }> = [
       { name: "nationality", label: "Country", type: "select" },
-      // BMI removed from manual requirements; it’s derived below
       { name: "weight", label: "Weight", type: "number", inputId: "weight" },
       { name: "height", label: "Height", type: "number", inputId: "height" },
       { name: "weightGainDuringPregnancy", label: "Weight Gain During Pregnancy", type: "number", inputId: "weightGainDuringPregnancy" },
@@ -150,7 +239,6 @@ export default function ClinicalInfoPage({ patient, clinicalInfo }: ClinicalInfo
 
       if (isInvalid) {
         errors.push(`${field.label} is required`)
-        // Try to highlight the actual input by id (for Inputs)
         if (field.inputId) {
           const el = document.getElementById(field.inputId)
           if (el) {
@@ -158,7 +246,6 @@ export default function ClinicalInfoPage({ patient, clinicalInfo }: ClinicalInfo
             if (!firstInvalidElement) firstInvalidElement = el as HTMLElement
           }
         } else {
-          // For Selects: highlight the trigger (closest [role="combobox"])
           const trigger = formRef.current?.querySelector<HTMLElement>(`[name="${field.name}"]`)?.closest("[role=combobox]") as HTMLElement | null
           if (trigger) {
             trigger.classList.add("ring-2", "ring-red-500")
@@ -193,19 +280,25 @@ export default function ClinicalInfoPage({ patient, clinicalInfo }: ClinicalInfo
     return true
   }
 
-  // Client-side submit; on success we navigate using startTransition
+  // Client-side submit handler
   const handleSubmit = async (formData: FormData) => {
     setIsLoading(true)
     try {
       const result = await createOrUpdateClinicalInfo(patient.id, formData)
       if (result.success) {
-        toast({ title: "Success", description: result.message })
-        const to = `/doctor/patients/${patient.id}`
-        router.prefetch(to)
-        startTransition(() => {
-          // replace avoids stacking the form page in history
-          router.replace(to)
+        const message = result.predictionMade 
+          ? "Clinical information saved and AI prediction generated successfully! Scroll down to see the AI prediction." 
+          : "Clinical information saved successfully"
+        
+        toast({ 
+          title: "Success", 
+          description: message,
+          duration: 5000
         })
+        
+        // Stay on the page and refresh data
+        router.refresh()
+        
       } else {
         toast({ title: "Error", description: result.message, variant: "destructive" })
       }
@@ -237,13 +330,13 @@ export default function ClinicalInfoPage({ patient, clinicalInfo }: ClinicalInfo
     }
   }
 
-  // Run client validation and inject computed BMI before calling handleSubmit().
+  // Form submit handler
   const onSubmitValidateThenSave: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault()
     if (!formRef.current) return
     const fd = new FormData(formRef.current)
 
-    // Put the controlled weight/height values back into FormData (source of truth)
+    // Put the controlled weight/height values back into FormData
     fd.set("weight", weight)
     fd.set("height", height)
 
@@ -284,10 +377,8 @@ export default function ClinicalInfoPage({ patient, clinicalInfo }: ClinicalInfo
               </div>
             </div>
 
-            {/* Use key to force re-mount when record changes */}
             <form
               key={clinicalInfo?.id ?? "empty"}
-              // action={handleSubmit}  <-- removed to avoid conflicting with manual submit/navigation
               onSubmit={onSubmitValidateThenSave}
               ref={formRef}
             >
@@ -332,7 +423,6 @@ export default function ClinicalInfoPage({ patient, clinicalInfo }: ClinicalInfo
                     <CardDescription>Body measurements and pregnancy-related metrics</CardDescription>
                   </CardHeader>
                   <CardContent className="grid gap-4 md:grid-cols-2">
-                    {/* BMI is now read-only & auto-calculated */}
                     <div className="space-y-2">
                       <Label htmlFor="bmi">BMI (kg/m²)</Label>
                       <Input
@@ -506,13 +596,74 @@ export default function ClinicalInfoPage({ patient, clinicalInfo }: ClinicalInfo
                   </CardContent>
                 </Card>
 
+                {/* AI Prediction Section */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Brain className="h-5 w-5" />
+                      AI Risk Assessment
+                    </CardTitle>
+                    <CardDescription>
+                      Machine learning prediction for gestational diabetes mellitus risk
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {latestPrediction ? (
+                      <div className="space-y-4">
+                        {/* Risk Level Badge and Confidence */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            {getPredictionBadge(latestPrediction)}
+                            <span className="text-sm text-muted-foreground">
+                              Confidence: {Math.round(latestPrediction.confidence * 100)}%
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Clock className="w-4 h-4" />
+                            {new Date(latestPrediction.predictedAt).toLocaleString()}
+                          </div>
+                        </div>
+
+                        {/* Prediction Message */}
+                        <div className="p-4 rounded-lg bg-muted/50">
+                          <p className="text-sm leading-relaxed">
+                            {getPredictionMessage(latestPrediction)}
+                          </p>
+                        </div>
+
+                        {/* Top Influential Features */}
+                        {latestPrediction.topInfluentialFeatures && latestPrediction.topInfluentialFeatures.length > 0 && (
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Top Influential Factors:</Label>
+                            <div className="flex flex-wrap gap-2">
+                              {mapFeaturesToDisplayNames(latestPrediction.topInfluentialFeatures).map((feature, index) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  #{index + 1} {feature}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <Brain className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                        <h3 className="text-lg font-medium mb-2">No AI Prediction Available</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Complete and save the clinical information above to generate an AI risk assessment for gestational diabetes mellitus.
+                        </p>
+                        <Badge variant="outline">Prediction will be generated on save</Badge>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
                 {/* Action Buttons */}
                 <div className="flex flex-wrap items-center justify-end gap-3">
                   <Button type="button" variant="outline" onClick={() => router.back()}>
                     Cancel
                   </Button>
 
-                  {/* Reset / Trash button (AlertDialog confirms, then deletes record + clears fields) */}
                   {clinicalInfo && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -529,7 +680,7 @@ export default function ClinicalInfoPage({ patient, clinicalInfo }: ClinicalInfo
                         <AlertDialogHeader>
                           <AlertDialogTitle>Delete all clinical info?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This action will permanently delete all clinical information for this patient.
+                            This action will permanently delete all clinical information and AI predictions for this patient.
                             This cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
@@ -549,7 +700,7 @@ export default function ClinicalInfoPage({ patient, clinicalInfo }: ClinicalInfo
 
                   <Button type="submit" disabled={isLoading || isResetting}>
                     <Save className="mr-2 h-4 w-4" />
-                    {isLoading ? "Saving..." : "Save Clinical Information"}
+                    {isLoading ? "Saving..." : "Save & Generate AI Prediction"}
                   </Button>
                 </div>
               </div>
