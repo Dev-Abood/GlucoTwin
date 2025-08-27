@@ -138,6 +138,7 @@ class GDMPredictor:
             for col, mapping in categorical_mappings.items():
                 if col in gdm_df.columns:
                     gdm_df[col] = gdm_df[col].map(mapping).fillna(0)
+                    
             
             # Ensure all required columns are present in correct order
             for col in self.feature_columns:
