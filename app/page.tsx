@@ -4,6 +4,7 @@ Create the layout of the landing page, link other pages using router
 */
 
 // test
+// test 2
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
