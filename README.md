@@ -76,24 +76,40 @@ const predictionResult = await flaskResponse.json()
 ## Project Structure
 
 ```
-glucotwin-app/
+GlucoTwin/
 ├── app/
-│   ├── auth/ (signin, signup)
-│   ├── dashboard/
-│   ├── predict/
-│   ├── sessions/
-│   ├── api/predict/route.ts
+│   ├── (auth)/
+│   │   ├── sign-in/
+│   │   └── sign-up/
+│   ├── doctor/
+│   │   ├── dashboard/
+│   │   ├── messages/
+│   │   ├── patients/
+│   │   └── profile/
+│   ├── onboarding/
+│   ├── patient/
+│   │   ├── _components/
+│   │   ├── dashboard/
+│   │   ├── messages/
+│   │   ├── profile/
+│   │   ├── readings/
+│   │   │   ├── edit/
+│   │   │   └── new/
+│   │   └── utils/
+│   ├── globals.css
 │   ├── layout.tsx
 │   └── page.tsx
-├── components/ui/
-│   └── [shadcn components]
+├── components/
+├── hooks/
+├── lib/
 ├── prisma/
-│   └── schema.prisma
-├── backend/
-│   └── app.py
-├── model.pkl
-├── scaler.pkl
-└── config files
+├── public/
+├── python-scripts/
+├── styles/
+├── app.py
+├── components.json
+├── Dockerfile
+└── middleware.ts
 ```
 
 ## Getting Started
