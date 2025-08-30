@@ -1,4 +1,4 @@
-# <div align="center">GlucoTwin – Gestational Diabetes Monitoring and Prediction Platform</div>
+# <div align="center">GlucoTwin – Gestational Diabetes Monitoring Platform</div>
 
 A comprehensive digital health application for monitoring and predicting gestational diabetes mellitus (GDM) using machine learning, built with Next.js and Flask, designed for integration with Clerk authentication and Neon database.
 
