@@ -3,6 +3,8 @@ TODO:
 Create the layout of the landing page, link other pages using router
 */
 
+// test
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SignedOut, SignInButton, SignedIn, UserButton } from "@clerk/nextjs";
