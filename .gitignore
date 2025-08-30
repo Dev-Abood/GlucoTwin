@@ -1,0 +1,28 @@
+# Node / Next.js
+node_modules/
+**/node_modules/
+.next/
+out/
+dist/
+build/
+.turbo/
+turbo/
+turbo-store/
+pnpm-store/
+.pnpm-store/
+npm-debug.log*
+yarn-*.log
+pnpm-debug.log*
+
+# Python / Flask
+__pycache__/
+*.py[cod]
+.env
+.env.*
+venv/
+env/
+*.egg-info/
+
+# Models & heavy artifacts
+*.pkl
+*.joblib
