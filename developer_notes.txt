@@ -5,7 +5,8 @@ Things to check for or might not be correct + to add:
 - [✔️]  Make the doctor's visualizations the same as patients
 - [ ]  The status of the glucose needs to implement the 6 cases.
 - [ ]  Implement logo button
-- [ ]  Implement revalidatePath when a patient reading is recorded or edited
+- [✔️]  Implement revalidatePath when a patient reading is recorded or edited
+- [ ]  Complete the GitHub documentation
 - [✔️]  Implement doctor set recommendations
 - [✔️]  Implement the messaging system.
 - [ ]  The code could be more clean and robust than now.
