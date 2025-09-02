@@ -22,6 +22,9 @@ model Patient {
   dateOfBirth DateTime
   term        Int
   dueDate     DateTime
+  latitude    Float?   // Latitude coordinate for patient location
+  longitude   Float?   // Longitude coordinate for patient location
+  address     String?  // Optional human-readable address
 
   patientAssignments PatientAssignment[]
   readings           Reading[]

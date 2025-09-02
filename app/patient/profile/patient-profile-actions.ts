@@ -11,7 +11,6 @@ type ActionResult = {
   message?: string
 }
 
-// Schema for validating patient profile updates with strict phone validation
 const updatePatientProfileSchema = z.object({
   email: z.string().email("Invalid email format"),
   phone: z
@@ -29,12 +28,15 @@ const updatePatientProfileSchema = z.object({
       }
       return `+1${cleaned}`;
     }),
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
+  address: z.string().nullable().optional(),
 })
 
 type UpdatePatientProfileInput = z.infer<typeof updatePatientProfileSchema>
 
 /**
- * Updates patient profile (email and phone)
+ * Updates patient profile (email, phone, and location)
  */
 export async function updatePatientProfile(data: UpdatePatientProfileInput): Promise<ActionResult> {
   try {
@@ -63,12 +65,14 @@ export async function updatePatientProfile(data: UpdatePatientProfileInput): Pro
       }
     }
 
-    // Update patient in database
     await prisma.patient.update({
       where: { id: userId },
       data: {
         email: validatedData.email,
-        phone: validatedData.phone, // Now properly formatted as +1XXXXXXXXXX
+        phone: validatedData.phone,
+        latitude: validatedData.latitude,
+        longitude: validatedData.longitude,
+        address: validatedData.address,
       },
     })
 
@@ -76,18 +80,18 @@ export async function updatePatientProfile(data: UpdatePatientProfileInput): Pro
     if (patient.email !== validatedData.email) {
       try {
         const clerk = await clerkClient()
-        
+
         // Get the current user to access their email addresses
         const user = await clerk.users.getUser(userId)
-        
+
         // Create new email address and set as primary
         const newEmailAddress = await clerk.emailAddresses.createEmailAddress({
           userId: userId,
           emailAddress: validatedData.email,
           verified: true, // Set as verified since it's an update, not new registration
-          primary: true,  // Make this the primary email
+          primary: true, // Make this the primary email
         })
-        
+
         // Optional: Delete the old primary email address
         if (user.primaryEmailAddressId) {
           try {
@@ -97,15 +101,15 @@ export async function updatePatientProfile(data: UpdatePatientProfileInput): Pro
             // Continue anyway - new email is created and set as primary
           }
         }
-        
+
         console.log(`Email updated in Clerk for user ${userId}: ${patient.email} -> ${validatedData.email}`)
-        
       } catch (clerkError) {
         console.error("Failed to update email in Clerk:", clerkError)
         // Continue anyway - database is updated
         return {
           success: true,
-          message: "Profile updated successfully, but email sync to authentication provider failed. This won't affect your login.",
+          message:
+            "Profile updated successfully, but email sync to authentication provider failed. This won't affect your login.",
         }
       }
     }
@@ -120,7 +124,7 @@ export async function updatePatientProfile(data: UpdatePatientProfileInput): Pro
     console.error("Error updating patient profile:", error)
 
     if (error instanceof z.ZodError) {
-      const fieldErrors = error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ')
+      const fieldErrors = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ")
       return {
         success: false,
         error: `Invalid input: ${fieldErrors}`,
@@ -157,6 +161,9 @@ export async function getPatientProfile() {
         dateOfBirth: true,
         term: true,
         dueDate: true,
+        latitude: true,
+        longitude: true,
+        address: true,
         readings: {
           select: {
             id: true,
@@ -192,106 +199,6 @@ export async function getPatientProfile() {
     return patient
   } catch (error) {
     console.error("Error fetching patient profile:", error)
-    throw error
-  }
-}
-
-/**
- * Get patient statistics for profile dashboard
- */
-export async function getPatientStats() {
-  try {
-    const { userId } = await auth()
-
-    if (!userId) {
-      throw new Error("Authentication required")
-    }
-
-    // Get reading statistics
-    const readingStats = await prisma.reading.groupBy({
-      by: ["status"],
-      where: {
-        patientId: userId,
-      },
-      _count: {
-        status: true,
-      },
-    })
-
-    // Get total readings count
-    const totalReadings = await prisma.reading.count({
-      where: {
-        patientId: userId,
-      },
-    })
-
-    // Get readings from last 7 days
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-
-    const recentReadings = await prisma.reading.count({
-      where: {
-        patientId: userId,
-        date: {
-          gte: sevenDaysAgo,
-        },
-      },
-    })
-
-    return {
-      totalReadings,
-      recentReadings,
-      statusBreakdown: readingStats.reduce(
-        (acc, stat) => {
-          acc[stat.status] = stat._count.status
-          return acc
-        },
-        {} as Record<string, number>,
-      ),
-    }
-  } catch (error) {
-    console.error("Error fetching patient stats:", error)
-    throw error
-  }
-}
-
-/**
- * Get patient's assigned doctors
- */
-export async function getPatientDoctors() {
-  try {
-    const { userId } = await auth()
-
-    if (!userId) {
-      throw new Error("Authentication required")
-    }
-
-    const assignments = await prisma.patientAssignment.findMany({
-      where: {
-        patientId: userId,
-      },
-      select: {
-        id: true,
-        addedDate: true,
-        lastVisitDate: true,
-        doctor: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            specialty: true,
-          },
-        },
-      },
-      orderBy: {
-        addedDate: "desc",
-      },
-    })
-
-    return assignments
-  } catch (error) {
-    console.error("Error fetching patient doctors:", error)
     throw error
   }
 }

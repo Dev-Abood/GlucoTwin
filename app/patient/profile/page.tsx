@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 import Header from "@/components/header"
 import Sidebar from "@/components/sidebar"
 import { getPatientProfile, updatePatientProfile } from "./patient-profile-actions"
+import LocationMap from "./location-map"
 
 interface PatientProfile {
   id: string
@@ -23,6 +24,9 @@ interface PatientProfile {
   dateOfBirth: Date
   term: number
   dueDate: Date
+  latitude: number | null
+  longitude: number | null
+  address: string | null
 }
 
 export default function PatientProfilePage() {
@@ -35,6 +39,9 @@ export default function PatientProfilePage() {
   const [editData, setEditData] = useState({
     email: "",
     phone: "",
+    latitude: null as number | null,
+    longitude: null as number | null,
+    address: null as string | null,
   })
 
   useEffect(() => {
@@ -48,6 +55,9 @@ export default function PatientProfilePage() {
       setEditData({
         email: data.email,
         phone: data.phone,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        address: data.address,
       })
     } catch (error) {
       toast({
@@ -58,6 +68,15 @@ export default function PatientProfilePage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleLocationChange = (latitude: number | null, longitude: number | null, address: string | null) => {
+    setEditData((prev) => ({
+      ...prev,
+      latitude,
+      longitude,
+      address,
+    }))
   }
 
   const handleSave = async () => {
@@ -97,6 +116,9 @@ export default function PatientProfilePage() {
       setEditData({
         email: profile.email,
         phone: profile.phone,
+        latitude: profile.latitude,
+        longitude: profile.longitude,
+        address: profile.address,
       })
     }
     setIsEditing(false)
@@ -297,8 +319,16 @@ export default function PatientProfilePage() {
                 </CardContent>
               </Card>
 
+              <LocationMap
+                initialLatitude={profile.latitude}
+                initialLongitude={profile.longitude}
+                initialAddress={profile.address}
+                onLocationChange={handleLocationChange}
+                isEditing={isEditing}
+              />
+
               {/* Medical Information */}
-              <Card>
+              <Card className="md:col-span-2">
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <Calendar className="h-5 w-5 mr-2" />
