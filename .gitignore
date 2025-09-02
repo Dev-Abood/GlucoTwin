@@ -26,3 +26,6 @@ env/
 # Models & heavy artifacts
 *.pkl
 *.joblib
+
+# clerk configuration (can include secrets)
+/.clerk/
