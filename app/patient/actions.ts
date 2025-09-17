@@ -5,7 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ReadingStatus, ReadingType } from "@prisma/client";
-import { createDangerousReadingNotificationForPatient } from "@/components/notifications/notification-actions";
+import { createDangerousReadingNotificationForPatient, createDangerousReadingNotificationForDoctors } from "@/components/notifications/notification-actions";
 
 // Type for result returned by the action
 type ActionResult = {
@@ -20,7 +20,7 @@ export async function deleteReading(id: string): Promise<ActionResult> {
   try {
     const { userId } = await auth();
     if (!userId) return { success: false, error: "Authentication required" };
-    if (!id) return { success: false, error: "Reading ID is required" };
+    if (!id) return { success: false, error: "Reading ID is required, make sure it's not faulty" };
 
     const patient = await prisma.patient.findUnique({
       where: { id: userId },
@@ -43,7 +43,7 @@ export async function deleteReading(id: string): Promise<ActionResult> {
     await prisma.reading.delete({ where: { id } });
 
     revalidatePath("/patient/readings");
-    return { success: true }; // fixed: don't put success message in `error`
+    return { success: true }; // don't put success message in `error` at catch
   } catch (error) {
     console.error("Error deleting reading:", error);
     return { success: false, error: "Failed to delete reading. Please try again." };
@@ -114,6 +114,16 @@ export async function createGlucoseReading(
 
     // Trigger dangerous-reading notification (needs the reading ID)
     if (status === ReadingStatus.HIGH || status === ReadingStatus.ELEVATED) {
+      await createDangerousReadingNotificationForPatient(
+        userId,               // patientId
+        newReading.level,     // level
+        newReading.type,      // type
+        newReading.time,      // time
+        newReading.id         // readingId
+      );
+
+      // Trigger a dangeroud-reading notification as well for the doctor
+      // detection base is the same for doctor and patient notifications
       await createDangerousReadingNotificationForPatient(
         userId,               // patientId
         newReading.level,     // level

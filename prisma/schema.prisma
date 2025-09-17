@@ -47,7 +47,6 @@ model ClinicalInformation {
   height                Float? // Height
   weightGainDuringPregnancy Float? // Weight gain during pregnancy (Kg)
   
-  
   // Glucose and Lab Values
   fastingBloodGlucose   Float? // Fasting blood glucose level
   oneHour75Glucose        Float? // 1 hour after 75g of glucose
@@ -61,7 +60,6 @@ model ClinicalInformation {
   bpSystolic            Float? // BP Systolic mm/Hg
   bpDiastolic           Float? // BP Diastolic mm/Hg
 
-  
   // AI Prediction Results
   aiPredictions         GDMPrediction[] 
   
@@ -117,6 +115,7 @@ model Doctor {
   // Each healthcare provider can have a list of assignments to oversee the patients
   patientAssignments PatientAssignment[]
   notifications      Notification[]
+  glucoseThresholds  GlucoseThresholds? // Added relationship to glucose thresholds
 }
 
 // PatientAssignment Table/Relation Creation
@@ -206,6 +205,31 @@ model Notification {
   @@index([doctorId, isRead, isArchived])
   @@index([createdAt])
   @@map("notifications")
+}
+
+model GlucoseThresholds {
+  id        String   @id @default(uuid())
+  doctorId  String   @unique // One threshold config per doctor
+  
+  // Hyperglycemia thresholds (mg/dL)
+  hyperglycemiaBeforeMeal    Float @default(95)   // Fasting/before meal
+  hyperglycemiaAfterMeal     Float @default(140)  // 1-2 hours after meal
+  hyperglycemiaMajor         Float @default(180)  // Severe hyperglycemia
+  
+  // Hypoglycemia thresholds (mg/dL)
+  hypoglycemia               Float @default(70)   // Standard hypoglycemia
+  hypoglycemiaMajor          Float @default(54)   // Severe hypoglycemia
+  
+  // Frequency threshold (number of occurrences in 7 days)
+  frequentThreshold          Int   @default(3)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relationships
+  doctor    Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  @@map("glucose_thresholds")
 }
 
 enum NotificationType {

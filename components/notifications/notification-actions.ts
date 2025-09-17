@@ -10,6 +10,7 @@ export type NotificationType =
   | "DAILY_REMINDER";
 
 // Get notifications for a user (patient or doctor)
+// userType attribute could be left without type specification if more user types are added
 export async function getNotifications(userId: string, userType: "patient" | "doctor") {
   try {
     const whereClause = userType === "patient" ? { patientId: userId } : { doctorId: userId };
@@ -114,6 +115,8 @@ export async function createDangerousReadingNotificationForPatient(
       isArchived: false,
     },
   });
+
+  
 }
 
 // Create dangerous reading notification for doctors
@@ -132,8 +135,8 @@ export async function createDangerousReadingNotificationForDoctors(
       include: { doctor: true },
     });
 
-    const title = "Patient Recorded Dangerous Reading";
-    const message = `${patientName} recorded a dangerous ${readingType
+    const title = "Your Patient Recorded Dangerous Reading";
+    const message = `your patient ${patientName} recorded a dangerous ${readingType
       .toLowerCase()
       .replace("_", " ")} reading of ${readingLevel} mg/dL at ${readingTime}. Immediate attention required.`;
 
@@ -177,7 +180,7 @@ export async function createMessageNotificationForPatient(
   messageId: string
 ) {
   const title = `New Message from ${senderName}`;
-  const message = `You have received a new message. Please check your messages.`;
+  const message = `You have received a new message from your overseeing doctor ${senderName}. Please check your messages.`;
 
   return await prisma.notification.create({
     data: {
@@ -187,7 +190,8 @@ export async function createMessageNotificationForPatient(
       metadata: {
         messageId,
         senderName,
-        senderType,
+        senderType, 
+        // will not explcitly decide senderType to be a doctor for now as we might have additional user types later on
         recipientId,
         recipientType: "patient",
       },
@@ -201,7 +205,7 @@ export async function createMessageNotificationForPatient(
 // Create new message notification for doctor
 export async function createMessageNotificationForDoctor(recipientId: string, senderName: string, messageId: string) {
   const title = `New Message from your patient ${senderName}`;
-  const message = `You have received a new message. Please check your messages.`;
+  const message = `You have received a new message from your patient ${senderName}. Please check your messages.`;
 
   return await prisma.notification.create({
     data: {
@@ -212,6 +216,7 @@ export async function createMessageNotificationForDoctor(recipientId: string, se
         messageId,
         senderName,
         senderType: "patient",
+        // no method of communication with the doctor unless you're a patient in our use-case, so we keep it as "patient"
         recipientId,
         recipientType: "doctor",
       },
@@ -224,7 +229,7 @@ export async function createMessageNotificationForDoctor(recipientId: string, se
 
 // Create daily reminder notification
 export async function createDailyReminderNotificationForPatient(patientId: string) {
-  const title = "Daily Glucose Reading Reminder";
+  const title = "Daily Glucose Reading Reminder!";
   const message = "Please record your 6 daily glucose readings for today to help track your gestational diabetes.";
 
   return await prisma.notification.create({
