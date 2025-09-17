@@ -29,13 +29,6 @@ export default function Header({ userType }: HeaderProps) {
     router.push(`/${userType}/profile`);
   };
 
-  const isDoctorRoute =
-    pathname.startsWith("/doctor") ||
-    pathname.startsWith("/doctor/messages") ||
-    pathname.startsWith("/doctor/dashboard") ||
-    pathname.startsWith("/doctor/patients") ||
-    pathname.startsWith("/doctor/patient/");
-
   return (
     <header className="sticky top-0 z-10 bg-background border-b">
       <div className="container flex h-16 items-center justify-between px-4">
