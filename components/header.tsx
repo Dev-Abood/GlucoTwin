@@ -36,16 +36,11 @@ export default function Header({ userType }: HeaderProps) {
     pathname.startsWith("/doctor/patients") ||
     pathname.startsWith("/doctor/patient/");
 
-  const portalLabel = isDoctorRoute
-    ? "Healthcare Provider Portal"
-    : "Patient Portal";
-
   return (
     <header className="sticky top-0 z-10 bg-background border-b">
       <div className="container flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-2">
           <span className="text-xl font-bold text-primary">GlucoTwin</span>
-          <span className="text-sm text-muted-foreground">{portalLabel}</span>
         </div>
         <div className="flex items-center gap-4">
           {/* <CHANGE> Replaced the non-functional Bell button with the new NotificationPanel component */}
