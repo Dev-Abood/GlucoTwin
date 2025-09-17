@@ -1,24 +1,23 @@
 Things to check for or might not be correct + to add:
 
 - [✔️]  Creating a repo and version control
-- [ ]  Better document the code
 - [✔️]  Make the doctor's visualizations the same as patients
-- [ ]  The status of the glucose needs to implement the 6 cases.
-- [ ]  Implement logo button
+- [✔️]  The status of the glucose needs to implement the 6 cases.
+- [✔️]  Enhance sidebar and make it collapsible 
 - [✔️]  Implement revalidatePath when a patient reading is recorded or edited
-- [ ]  Complete the GitHub documentation
 - [✔️]  Implement doctor set recommendations
 - [✔️]  Implement the messaging system.
-- [ ]  The code could be more clean and robust than now.
-- [ ]  Repetitive code could be combined into components.
-- [ ]  Overall code refactory might be needed
 - [✔️]  Implementing the user profile page.
 - [✔️]  Implementing the notification page (button)
 - [✔️]  Implementing when user goes to onboarding after sign up.
 - [✔️]  Implement a way to assign patients to a doctor
-- [ ]  UI improvements could also be possible.
-- [ ]  User testing for every bit of the website to check for any error or any user interaction problem
 - [✔️]  A way for doctors to be able to register in the system
 - [✔️]  Handle the case for /doctor or /patient where it did not find the route (might push them to the dashboard)
 - [✔️]  Fix any errors with date picker in create readings (like it keeps moving up and down ??)
 - [✔️]  Fix any hydration error in the app for maybe theme provider
+    - [ ]  Implement logo button
+    - [ ]  Complete the GitHub documentation
+    - [ ]  Improve UI/UX through testing
+    - [ ]  User testing for every bit of the website to check for any error or any user interaction problem
+    - [ ]  Refactor and clean up code (remove repetition, make it more robust)
+    - [ ]  Better document the code
