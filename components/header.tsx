@@ -11,6 +11,9 @@ import { User, LogOut } from 'lucide-react';
 import { useRouter, usePathname } from "next/navigation";
 import NotificationPanel from "./notifications/notification-panel";
 
+// Link Component
+import Link from "next/link";
+
 interface HeaderProps {
   userType: "patient" | "doctor";
 }
@@ -33,6 +36,16 @@ export default function Header({ userType }: HeaderProps) {
     <header className="sticky top-0 z-10 bg-background border-b">
       <div className="container flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-2">
+          <Link
+            href='/'>
+            <img
+              src="/glucotwin_logo.png"
+              alt="glucotwin logo"
+              className="rounded-lg object-cover mt-1"
+              width={40}
+              height={40}
+            />
+            </Link>
           <span className="text-xl font-bold text-primary">GlucoTwin</span>
         </div>
         <div className="flex items-center gap-4">

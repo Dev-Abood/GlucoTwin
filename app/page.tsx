@@ -20,6 +20,16 @@ export default async function Home() {
       <header className="bg-white border-b">
         <div className="container flex h-16 items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-2">
+            <Link
+            href='/'>
+            <img
+              src="/glucotwin_logo.png"
+              alt="glucotwin logo"
+              className="rounded-lg object-cover mt-1"
+              width={40}
+              height={40}
+            />
+            </Link>
             <span className="text-xl font-bold text-primary">GlucoTwin</span>
           </div>
           {/* //* Navbar
