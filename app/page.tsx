@@ -29,8 +29,8 @@ export default async function Home() {
               width={40}
               height={40}
             />
-            </Link>
             <span className="text-xl font-bold text-primary">GlucoTwin</span>
+            </Link>
           </div>
           {/* //* Navbar
            */}

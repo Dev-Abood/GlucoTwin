@@ -45,8 +45,8 @@ export default function Header({ userType }: HeaderProps) {
               width={40}
               height={40}
             />
-            </Link>
           <span className="text-xl font-bold text-primary">GlucoTwin</span>
+          </Link>
         </div>
         <div className="flex items-center gap-4">
           {/* <CHANGE> Replaced the non-functional Bell button with the new NotificationPanel component */}
