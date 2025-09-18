@@ -42,8 +42,8 @@ export default function Header({ userType }: HeaderProps) {
               src="/glucotwin_logo.png"
               alt="glucotwin logo"
               className="rounded-lg object-cover mt-1"
-              width={40}
-              height={40}
+              width={50}
+              height={50}
             />
             </Link>
             <Link href="/">
