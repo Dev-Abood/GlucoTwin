@@ -45,6 +45,8 @@ export default function Header({ userType }: HeaderProps) {
               width={40}
               height={40}
             />
+            </Link>
+            <Link href="/">
           <span className="text-xl font-bold text-primary">GlucoTwin</span>
           </Link>
         </div>
