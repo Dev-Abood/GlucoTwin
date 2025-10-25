@@ -155,19 +155,23 @@ model Recommendation {
 model Reading {
   id        String      @id @default(uuid()) // PK + unique user id
   patientId String
-  date      DateTime // date of the when the reading was taken
+  date      DateTime // date of when the reading was taken
   time      String // time of when the reading was taken
   // this type is defined at the bottom of the file, 
-  // enumarted the timings of the reading
+  // enumerated the timings of the reading
   type      ReadingType
   level     Float
   status    ReadingStatus @default(NORMAL)
   // Nullable attribute, patient may not have record notes on the reading
   notes     String?
 
-  // Relationships and forgein keys:
+  // Relationships and foreign keys:
   // patient who recorded the reading, mapped to patientID
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  // Composite unique constraint: one reading per type per patient per day
+  @@unique([patientId, date, type], name: "unique_patient_date_type")
+  @@index([patientId, date]) // Index for faster queries by patient and date
 }
 
 model Message {

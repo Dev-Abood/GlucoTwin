@@ -1,7 +1,6 @@
-// TODO:: Check this file correctly later
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -21,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -30,17 +29,13 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import calculateReadingStatus, { createGlucoseReading } from "../../actions";
+import calculateReadingStatus, {
+  createGlucoseReading,
+  getTodayReadingTypes,
+} from "../../actions";
 import ClientSideDateTime from "../../_components/client-side-date-time";
 import { useRouter } from "next/navigation";
 
-/**
- * Schema for the glucose reading form
- * Validates that:
- * - Reading type is selected from predefined options
- * - Glucose level is a number with up to 2 decimal places
- * - Notes are optional
- */
 const formSchema = z.object({
   readingType: z.enum([
     "BEFORE_BREAKFAST",
@@ -53,48 +48,61 @@ const formSchema = z.object({
   glucoseLevel: z
     .string()
     .refine(
-      // Ensures value is a valid number with max 2 decimal places
       (val) => /^\d{1,3}(\.\d{1,2})?$/.test(val),
       {
         message:
           "Enter a valid number with up to 2 decimal places (e.g., 95.75)",
       }
     )
-    .transform((val) => parseFloat(parseFloat(val).toFixed(2))), // Convert to number with 2 decimal places
+    .transform((val) => parseFloat(parseFloat(val).toFixed(2))),
   notes: z.string().optional(),
 });
 
-// Type for form values derived from the schema
 type FormValues = z.infer<typeof formSchema>;
+type ReadingType = FormValues["readingType"];
 
-/**
- * NewReadingForm Component
- * A form for patients to record new glucose readings
- */
 export default function NewReadingForm() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingReadings, setIsLoadingReadings] = useState(true);
+  const [existingReadings, setExistingReadings] = useState<Set<ReadingType>>(
+    new Set()
+  );
 
-  // Type options for glucose readings
   const typeOptions = [
     {
       id: "before-breakfast",
       label: "Before Breakfast",
-      value: "BEFORE_BREAKFAST",
+      value: "BEFORE_BREAKFAST" as ReadingType,
     },
     {
       id: "after-breakfast",
       label: "After Breakfast",
-      value: "AFTER_BREAKFAST",
+      value: "AFTER_BREAKFAST" as ReadingType,
     },
-    { id: "before-lunch", label: "Before Lunch", value: "BEFORE_LUNCH" },
-    { id: "after-lunch", label: "After Lunch", value: "AFTER_LUNCH" },
-    { id: "before-dinner", label: "Before Dinner", value: "BEFORE_DINNER" },
-    { id: "after-dinner", label: "After Dinner", value: "AFTER_DINNER" },
+    {
+      id: "before-lunch",
+      label: "Before Lunch",
+      value: "BEFORE_LUNCH" as ReadingType,
+    },
+    {
+      id: "after-lunch",
+      label: "After Lunch",
+      value: "AFTER_LUNCH" as ReadingType,
+    },
+    {
+      id: "before-dinner",
+      label: "Before Dinner",
+      value: "BEFORE_DINNER" as ReadingType,
+    },
+    {
+      id: "after-dinner",
+      label: "After Dinner",
+      value: "AFTER_DINNER" as ReadingType,
+    },
   ];
 
-  // Initialize the form with default values
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -104,21 +112,77 @@ export default function NewReadingForm() {
     },
   });
 
-  /**
-   * Form submission handler
-   * Validates inputs and sends data to the server
-   */
+  // Fetch today's readings on component mount
+  useEffect(() => {
+    const fetchTodayReadings = async () => {
+      try {
+        setIsLoadingReadings(true);
+
+        // Get today's date in Dubai timezone (YYYY-MM-DD format)
+        const dubaiTime = new Date().toLocaleString("en-US", {
+          timeZone: "Asia/Dubai",
+        });
+        const dubaiDate = new Date(dubaiTime);
+        const todayDate =
+          dubaiDate.getFullYear() +
+          "-" +
+          String(dubaiDate.getMonth() + 1).padStart(2, "0") +
+          "-" +
+          String(dubaiDate.getDate()).padStart(2, "0");
+
+        // Call server action to fetch today's reading types
+        const result = await getTodayReadingTypes(todayDate);
+
+        if (!result.success || !result.readings) {
+          throw new Error(result.error || "Failed to fetch readings");
+        }
+
+        // Create a set of reading types that already exist
+        const existingTypes = new Set<ReadingType>(result.readings);
+
+        setExistingReadings(existingTypes);
+
+        // Set default value to first available reading type
+        const firstAvailable = typeOptions.find(
+          (opt) => !existingTypes.has(opt.value)
+        );
+        if (firstAvailable) {
+          form.setValue("readingType", firstAvailable.value);
+        }
+      } catch (error) {
+        console.error("Error fetching today's readings:", error);
+        toast({
+          title: "Warning",
+          description: "Could not load existing readings",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingReadings(false);
+      }
+    };
+
+    fetchTodayReadings();
+  }, []);
+
   const onSubmit = async (values: FormValues) => {
     try {
       setIsSubmitting(true);
 
-      // Get current date and time in Dubai timezone
+      // Check if this reading type already exists
+      if (existingReadings.has(values.readingType)) {
+        toast({
+          title: "Reading Already Exists",
+          description: "You have already recorded this reading type today.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const dubaiTime = new Date().toLocaleString("en-US", {
         timeZone: "Asia/Dubai",
       });
       const dubaiDate = new Date(dubaiTime);
 
-      // Format date as YYYY-MM-DD
       const formattedDate =
         dubaiDate.getFullYear() +
         "-" +
@@ -126,13 +190,11 @@ export default function NewReadingForm() {
         "-" +
         String(dubaiDate.getDate()).padStart(2, "0");
 
-      // Format time as HH:MM
       const formattedTime =
         String(dubaiDate.getHours()).padStart(2, "0") +
         ":" +
         String(dubaiDate.getMinutes()).padStart(2, "0");
 
-      // Prepare reading data with patient ID
       const status = calculateReadingStatus(
         Number(values.glucoseLevel),
         values.readingType
@@ -146,7 +208,6 @@ export default function NewReadingForm() {
         notes: values.notes || "",
       };
 
-      // Submit to server action
       const result = await createGlucoseReading(newReading);
 
       if (result.success) {
@@ -155,7 +216,6 @@ export default function NewReadingForm() {
           description: "Reading saved successfully",
         });
 
-        // Redirect to readings page
         router.push("/patient/readings");
       } else {
         throw new Error(result.error || "Failed to save reading");
@@ -172,9 +232,11 @@ export default function NewReadingForm() {
     }
   };
 
+  // Check if all readings for today are complete
+  const allReadingsComplete = existingReadings.size === 6;
+
   return (
     <div className="container max-w-md py-10">
-      {/* Back navigation link */}
       <div className="mb-6">
         <Link
           href="/patient/readings"
@@ -189,126 +251,163 @@ export default function NewReadingForm() {
         <CardHeader>
           <CardTitle>Record New Glucose Reading</CardTitle>
           <CardDescription>
-            Enter your latest glucose measurement
+            {allReadingsComplete
+              ? "All readings for today have been recorded"
+              : "Enter your latest glucose measurement"}
           </CardDescription>
         </CardHeader>
 
-        {/* Form with Zod validation */}
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <CardContent className="space-y-6">
-              {/* Reading Type Selection */}
-              <FormField
-                control={form.control}
-                name="readingType"
-                render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormLabel>When did you take this reading?</FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="grid gap-2"
-                      >
-                        {typeOptions.map((option) => (
-                          <Label
-                            key={option.id}
-                            htmlFor={option.id}
-                            className="flex cursor-pointer items-center justify-between rounded-md border p-4 [&:has(:checked)]:bg-primary/10"
-                          >
-                            <div className="space-y-1">
-                              <p>{option.label}</p>
-                            </div>
-                            <RadioGroupItem
-                              id={option.id}
-                              value={option.value}
-                            />
-                          </Label>
-                        ))}
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+        {isLoadingReadings ? (
+          <CardContent className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </CardContent>
+        ) : allReadingsComplete ? (
+          <CardContent className="space-y-4">
+            <div className="text-center py-8">
+              <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
+              <p className="text-lg font-medium">Great job!</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                You've completed all 6 glucose readings for today.
+              </p>
+            </div>
+          </CardContent>
+        ) : (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)}>
+              <CardContent className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="readingType"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <FormLabel>When did you take this reading?</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          className="grid gap-2"
+                        >
+                          {typeOptions.map((option) => {
+                            const isRecorded = existingReadings.has(
+                              option.value
+                            );
+                            return (
+                              <Label
+                                key={option.id}
+                                htmlFor={option.id}
+                                className={`flex cursor-pointer items-center justify-between rounded-md border p-4 transition-colors ${
+                                  isRecorded
+                                    ? "bg-muted/50 opacity-50 cursor-not-allowed"
+                                    : "[&:has(:checked)]:bg-primary/10 hover:bg-muted/50"
+                                }`}
+                              >
+                                <div className="flex items-center space-x-3">
+                                  {isRecorded && (
+                                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                  )}
+                                  <div className="space-y-1">
+                                    <p className={isRecorded ? "line-through" : ""}>
+                                      {option.label}
+                                    </p>
+                                    {isRecorded && (
+                                      <p className="text-xs text-muted-foreground">
+                                        Already recorded today
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                                <RadioGroupItem
+                                  id={option.id}
+                                  value={option.value}
+                                  disabled={isRecorded}
+                                />
+                              </Label>
+                            );
+                          })}
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              {/* Glucose Level Input */}
-              <FormField
-                control={form.control}
-                name="glucoseLevel"
-                render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormLabel>Glucose Level (mg/dL)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter your reading (e.g., 95.75)"
-                        type="text"
-                        inputMode="decimal"
-                        {...field}
-                        onChange={(e) => {
-                          // Allow only numbers and up to 2 decimal places
-                          const value = e.target.value;
-                          if (
-                            /^\d{0,3}(\.\d{0,2})?$/.test(value) ||
-                            value === ""
-                          ) {
-                            field.onChange(value);
-                          }
-                        }}
-                      />
-                    </FormControl>
-                    <p className="text-xs text-muted-foreground">
-                      Enter a number with up to 2 decimal places
-                    </p>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="glucoseLevel"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <FormLabel>Glucose Level (mg/dL)</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter your reading (e.g., 95.75)"
+                          type="text"
+                          inputMode="decimal"
+                          {...field}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (
+                              /^\d{0,3}(\.\d{0,2})?$/.test(value) ||
+                              value === ""
+                            ) {
+                              field.onChange(value);
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        Enter a number with up to 2 decimal places
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              {/* Date and Time Information */}
-              <div className="space-y-2">
-                <Label>Date and Time</Label>
-                <div className="text-sm text-muted-foreground p-2 border rounded-md bg-muted/20">
-                  The current date and time (<ClientSideDateTime />) will be
-                  automatically recorded.
+                <div className="space-y-2">
+                  <Label>Date and Time</Label>
+                  <div className="text-sm text-muted-foreground p-2 border rounded-md bg-muted/20">
+                    The current date and time (<ClientSideDateTime />) will be
+                    automatically recorded.
+                  </div>
                 </div>
-              </div>
 
-              {/* Notes Textarea */}
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormLabel>Notes (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Add any notes about this reading (e.g., what you ate, activity level, how you're feeling)"
-                        className="resize-none"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <FormLabel>Notes (Optional)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Add any notes about this reading (e.g., what you ate, activity level, how you're feeling)"
+                          className="resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
 
-            {/* Submit Button */}
-            <CardFooter>
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  "Save Reading"
-                )}
-              </Button>
-            </CardFooter>
-          </form>
-        </Form>
+              <CardFooter>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Reading"
+                  )}
+                </Button>
+              </CardFooter>
+            </form>
+          </Form>
+        )}
       </Card>
     </div>
   );

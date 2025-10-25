@@ -7,6 +7,12 @@ import { z } from "zod";
 import { ReadingStatus, ReadingType } from "@prisma/client";
 import { createDangerousReadingNotificationForPatient, createDangerousReadingNotificationForDoctors } from "@/components/notifications/notification-actions";
 
+type TodayReadingsResult = {
+  success: boolean;
+  readings?: ReadingType[];
+  error?: string;
+};
+
 // Type for result returned by the action
 type ActionResult = {
   success: boolean;
@@ -84,6 +90,7 @@ type GlucoseReadingInput = z.infer<typeof glucoseReadingSchema>;
 
 /**
  * Creates a new glucose reading for a patient
+ * Now handles unique constraint violations at the database level
  */
 export async function createGlucoseReading(
   data: GlucoseReadingInput
@@ -114,6 +121,15 @@ export async function createGlucoseReading(
 
     // Trigger dangerous-reading notification (needs the reading ID)
     if (status === ReadingStatus.HIGH || status === ReadingStatus.ELEVATED) {
+      // Fetch patient name for doctor notification
+      const patient = await prisma.patient.findUnique({
+        where: { id: userId },
+        select: { name: true },
+      });
+
+      const patientName = patient?.name || "Unknown Patient";
+
+      // Create notification for patient
       await createDangerousReadingNotificationForPatient(
         userId,               // patientId
         newReading.level,     // level
@@ -122,13 +138,13 @@ export async function createGlucoseReading(
         newReading.id         // readingId
       );
 
-      // Trigger a dangeroud-reading notification as well for the doctor
-      // detection base is the same for doctor and patient notifications
-      await createDangerousReadingNotificationForPatient(
+      // Create notification for assigned doctors
+      await createDangerousReadingNotificationForDoctors(
         userId,               // patientId
-        newReading.level,     // level
-        newReading.type,      // type
-        newReading.time,      // time
+        patientName,          // patientName
+        newReading.level,     // readingLevel
+        newReading.type,      // readingType
+        newReading.time,      // readingTime
         newReading.id         // readingId
       );
     }
@@ -136,6 +152,20 @@ export async function createGlucoseReading(
     return { success: true };
   } catch (error) {
     console.error("Error creating glucose reading:", error);
+    
+    // Check if it's a Prisma unique constraint violation
+    if (error instanceof Error && 'code' in error) {
+      const prismaError = error as any;
+      
+      // P2002 is Prisma's error code for unique constraint violations
+      if (prismaError.code === 'P2002') {
+        return {
+          success: false,
+          error: "You have already recorded this reading type today. Please choose a different reading type or edit your existing reading.",
+        };
+      }
+    }
+    
     return {
       success: false,
       error: error instanceof Error ? error.message : "An unknown error occurred",
@@ -219,6 +249,51 @@ export async function updateGlucoseReading(
     return {
       success: false,
       error: error instanceof Error ? error.message : "An unknown error occurred",
+    };
+  }
+}
+
+/**
+ * Fetches the reading types that have already been recorded today
+ * Returns an array of ReadingType enums
+ */
+export async function getTodayReadingTypes(
+  date: string
+): Promise<TodayReadingsResult> {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return { success: false, error: "Authentication required" };
+    }
+
+    // Validate date format (YYYY-MM-DD)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return { success: false, error: "Invalid date format" };
+    }
+
+    // Query readings for the patient for the specified date
+    const readings = await prisma.reading.findMany({
+      where: {
+        patientId: userId,
+        date: new Date(date + "T00:00:00.000Z"),
+      },
+      select: {
+        type: true,
+      },
+    });
+
+    // Extract just the reading types
+    const readingTypes = readings.map((r) => r.type);
+
+    return {
+      success: true,
+      readings: readingTypes,
+    };
+  } catch (error) {
+    console.error("Error fetching today's readings:", error);
+    return {
+      success: false,
+      error: "Failed to fetch today's readings",
     };
   }
 }
