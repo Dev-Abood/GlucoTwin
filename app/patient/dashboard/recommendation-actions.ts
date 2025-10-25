@@ -57,7 +57,6 @@ export async function createRecommendation(data: CreateRecommendationInput): Pro
       },
     })
 
-    // ⬇️ New: fetch assignment to notify the correct patient
     const assignment = await prisma.patientAssignment.findUnique({
       where: { id: data.patientAssignmentId },
       include: { doctor: { select: { name: true } } },
@@ -114,7 +113,6 @@ export async function updateRecommendation(data: UpdateRecommendationInput): Pro
 
     const validatedData = updateRecommendationSchema.parse(data)
 
-    // ⬇️ New: fetch the existing rec’s assignment to know whom to notify
     const existing = await prisma.recommendation.findUnique({
       where: { id: validatedData.id },
       include: {
@@ -138,7 +136,6 @@ export async function updateRecommendation(data: UpdateRecommendationInput): Pro
       },
     })
 
-    // ⬇️ New: notify patient about the updated recommendation
     try {
       await createNewRecommendationNotificationForPatient(
         existing.patientAssignment.patientId,

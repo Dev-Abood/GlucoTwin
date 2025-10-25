@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
 import Header from "@/components/header"
 import Sidebar from "@/components/sidebar"
@@ -25,6 +26,28 @@ interface DoctorProfile {
       patientId: string
     }
   }[]
+}
+
+/**
+ * Skeleton loader for profile cards
+ */
+function ProfileCardSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-6 w-[200px] mb-2" />
+        <Skeleton className="h-4 w-[180px]" />
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {[...Array(3)].map((_, i) => (
+          <div key={i}>
+            <Skeleton className="h-4 w-[120px] mb-2" />
+            <Skeleton className="h-6 w-full" />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  )
 }
 
 export default function DoctorProfilePage() {
@@ -112,8 +135,23 @@ export default function DoctorProfilePage() {
           <Sidebar userType="doctor" />
           <main className="flex-1 overflow-auto">
             <div className="container py-6">
-              <div className="flex justify-center items-center py-20">
-                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary" />
+              <div className="mb-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <Skeleton className="h-10 w-[100px]" />
+                    <div>
+                      <Skeleton className="h-9 w-[180px] mb-2" />
+                      <Skeleton className="h-4 w-[280px]" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-10 w-[140px]" />
+                </div>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                {[...Array(4)].map((_, i) => (
+                  <ProfileCardSkeleton key={i} />
+                ))}
               </div>
             </div>
           </main>
