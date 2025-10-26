@@ -11,7 +11,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Patient Table/Relation Creation
+
+// Hospital Module
+model Hospital {
+  id          String   @id @default(uuid())
+  name        String
+  address     String
+  phone       String
+  email       String   @unique
+  latitude    Float?   // Hospital location
+  longitude   Float?   // Hospital location
+  
+  // Operating hours (stored as JSON for flexibility)
+  // Example: {"monday": {"open": "08:00", "close": "20:00"}, ...}
+  operatingHours Json?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relationships
+  doctors     Doctor[]
+  patients    Patient[]
+  
+  @@index([name])
+  @@map("hospitals")
+}
+
+
+
 model Patient {
   id          String   @id @default(uuid())
   patientId   String   @unique
@@ -22,79 +49,164 @@ model Patient {
   dateOfBirth DateTime
   term        Int
   dueDate     DateTime
-  latitude    Float?   // Latitude coordinate for patient location
-  longitude   Float?   // Longitude coordinate for patient location
-  address     String?  // Optional human-readable address
-
+  latitude    Float?
+  longitude   Float?
+  address     String?
+  
+  // Hospital relationship (REQUIRED)
+  hospitalId  String
+  hospital    Hospital @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  
   patientAssignments PatientAssignment[]
   readings           Reading[]
   notifications      Notification[]
-  clinicalInfo       ClinicalInformation? // One-to-one relationship with clinical data
+  clinicalInfo       ClinicalInformation?
+  appointments       Appointment[] // New: patient's appointments
+  
+  @@index([hospitalId])
+  @@index([email])
 }
 
-// Clinical Information Table/Relation Creation
-// Stores comprehensive clinical data for GDM patients
-model ClinicalInformation {
-  id                    String   @id @default(uuid())
-  patientId             String   @unique // Foreign key to Patient
+model Doctor {
+  id        String  @id @default(uuid())
+  email     String  @unique
+  phone     String  @default("+1234567890")
+  name      String
+  specialty String?
   
-  // Treatment and Demographics
-  nationality           String?
+  // Hospital relationship (REQUIRED)
+  hospitalId String
+  hospital   Hospital @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
   
-  // Physical Measurements
-  bmi         Float? // BMI at baseline (Kg/m^2)
-  weight                Float? // Weight in Kg
-  height                Float? // Height
-  weightGainDuringPregnancy Float? // Weight gain during pregnancy (Kg)
+  // Professional details
+  licenseNumber     String?  // Medical license number
+  yearsOfExperience Int?
+  bio               String?  // Short bio for patients to read
   
-  // Glucose and Lab Values
-  fastingBloodGlucose   Float? // Fasting blood glucose level
-  oneHour75Glucose        Float? // 1 hour after 75g of glucose
-  twoHour75Glucose        Float? // 2 hours after 75g of glucose
+  patientAssignments PatientAssignment[]
+  notifications      Notification[]
+  glucoseThresholds  GlucoseThresholds?
+  appointments       Appointment[]        // New: doctor's appointments
+  availabilitySlots  DoctorAvailability[] // New: doctor's availability schedule
   
-  // Clinical Conditions
-  hypertensiveDisorders String? // Yes/No for hypertensive disorders
-  
-  // Vital Signs
-  pulseHeartRate        Float? // Pulse/heart rate bt/min
-  bpSystolic            Float? // BP Systolic mm/Hg
-  bpDiastolic           Float? // BP Diastolic mm/Hg
+  @@index([hospitalId])
+  @@index([email])
+}
 
-  // AI Prediction Results
-  aiPredictions         GDMPrediction[] 
+
+model Appointment {
+  id          String            @id @default(uuid())
+  
+  // Core relationships
+  patientId   String
+  patient     Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  doctorId    String
+  doctor      Doctor            @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  // Appointment details
+  appointmentDate DateTime        // Date and start time of appointment
+  duration        Int             @default(50) // Duration in minutes
+  endTime         DateTime        // Calculated end time
+  
+  status          AppointmentStatus @default(SCHEDULED)
+  type            AppointmentType   @default(CONSULTATION)
+  
+  // Appointment notes
+  reasonForVisit  String?         // Patient's reason for booking
+  doctorNotes     String?         // Doctor's notes after appointment
+  prescriptions   String?         // Prescriptions given
   
   // Metadata
+  bookedAt        DateTime        @default(now())
+  cancelledAt     DateTime?
+  cancelReason    String?
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  @@index([patientId, appointmentDate])
+  @@index([doctorId, appointmentDate])
+  @@index([status])
+  @@unique([doctorId, appointmentDate], name: "unique_doctor_appointment_time")
+  @@map("appointments")
+}
+
+model DoctorAvailability {
+  id          String   @id @default(uuid())
+  
+  doctorId    String
+  doctor      Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  // Time slot details
+  dayOfWeek   DayOfWeek        // Which day of the week
+  startTime   String           // Format: "HH:MM" (e.g., "09:00")
+  endTime     String           // Format: "HH:MM" (e.g., "17:00")
+  
+  // For specific date overrides (e.g., holidays, sick days)
+  specificDate DateTime?       // If set, this applies to a specific date only
+  isAvailable  Boolean         @default(true) // false = blocked time
+  
+  // Recurrence
+  isRecurring  Boolean         @default(true) // Does this repeat every week?
+  effectiveFrom DateTime       @default(now())
+  effectiveUntil DateTime?     // Optional end date for availability
+  
+  // Notes
+  notes        String?         // E.g., "On vacation", "Conference"
+  
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  
+  @@index([doctorId, dayOfWeek])
+  @@index([doctorId, specificDate])
+  @@map("doctor_availability")
+}
+
+
+model ClinicalInformation {
+  id                    String   @id @default(uuid())
+  patientId             String   @unique
+  
+  nationality           String?
+  bmi                   Float?
+  weight                Float?
+  height                Float?
+  weightGainDuringPregnancy Float?
+  fastingBloodGlucose   Float?
+  oneHour75Glucose      Float?
+  twoHour75Glucose      Float?
+  hypertensiveDisorders String?
+  pulseHeartRate        Float?
+  bpSystolic            Float?
+  bpDiastolic           Float?
+  
+  aiPredictions         GDMPrediction[]
+  
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   
-  // Relationships
   patient               Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
   
   @@index([patientId])
   @@map("clinical_information")
 }
 
-// AI Prediction Results Table
-// Stores predictions from your Flask ML service
 model GDMPrediction {
   id                    String   @id @default(uuid())
-  clinicalInfoId        String   // Links to ClinicalInformation
+  clinicalInfoId        String
   
-  // Prediction Results
-  predictedGDMRisk      Float    // Risk score (0.0 to 1.0)
-  riskCategory          GDMRiskLevel // LOW, MODERATE, HIGH, CRITICAL
-  confidence            Float    // Model confidence (0.0 to 1.0)
+  predictedGDMRisk      Float
+  riskCategory          GDMRiskLevel
+  confidence            Float
   
-  // Model Information
-  modelVersion          String    // Track which ML model version was used
-  featuresUsed          Json      // Store which features were used for this prediction
-  topInfluentialFeatures String[] // Store the top 5 feature names that influenced this prediction
-
-  // Timestamps
+  modelVersion          String
+  featuresUsed          Json
+  topInfluentialFeatures String[]
+  
   predictedAt           DateTime @default(now())
-  isActive              Boolean  @default(true) // Latest prediction is active
+  isActive              Boolean  @default(true)
   
-  // Relationships
   clinicalInformation   ClinicalInformation @relation(fields: [clinicalInfoId], references: [id], onDelete: Cascade)
   
   @@index([clinicalInfoId, isActive])
@@ -103,33 +215,16 @@ model GDMPrediction {
   @@map("gdm_predictions")
 }
 
-// Doctor Table/Relation Creation
-model Doctor {
-  // Table attributes and basic constraints:
-  id        String  @id @default(uuid()) // PK + unique user id
-  email     String  @unique
-  phone     String  @default("+1234567890")
-  name      String
-  specialty String? // Nullable
-
-  // Each healthcare provider can have a list of assignments to oversee the patients
-  patientAssignments PatientAssignment[]
-  notifications      Notification[]
-  glucoseThresholds  GlucoseThresholds? // Added relationship to glucose thresholds
-}
-
-// PatientAssignment Table/Relation Creation
-// tracks the assignment of patients to doctors
 model PatientAssignment {
   id            String   @id @default(uuid())
   doctorId      String
   patientId     String
   lastVisitDate DateTime
   addedDate     DateTime
-
+  
   hasMessageForDoctor  Boolean @default(false)
   hasMessageForPatient Boolean @default(false)
-
+  
   doctor          Doctor          @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   patient         Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
   messages        Message[]
@@ -144,46 +239,37 @@ model Recommendation {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   isActive            Boolean  @default(true)
-
-  // Relationship
+  
   patientAssignment PatientAssignment @relation(fields: [patientAssignmentId], references: [id], onDelete: Cascade)
-
+  
   @@index([patientAssignmentId])
 }
 
-// Reading Table/Relation Creation
 model Reading {
-  id        String      @id @default(uuid()) // PK + unique user id
+  id        String      @id @default(uuid())
   patientId String
-  date      DateTime // date of when the reading was taken
-  time      String // time of when the reading was taken
-  // this type is defined at the bottom of the file, 
-  // enumerated the timings of the reading
+  date      DateTime
+  time      String
   type      ReadingType
   level     Float
   status    ReadingStatus @default(NORMAL)
-  // Nullable attribute, patient may not have record notes on the reading
   notes     String?
-
-  // Relationships and foreign keys:
-  // patient who recorded the reading, mapped to patientID
+  
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  // Composite unique constraint: one reading per type per patient per day
+  
   @@unique([patientId, date, type], name: "unique_patient_date_type")
-  @@index([patientId, date]) // Index for faster queries by patient and date
+  @@index([patientId, date])
 }
 
 model Message {
   id                  String     @id @default(uuid())
-  patientAssignmentId String // Links to PatientAssignment
-  senderId            String // Either doctorId or patientId
-  senderType          SenderType // DOCTOR or PATIENT
+  patientAssignmentId String
+  senderId            String
+  senderType          SenderType
   content             String
   timestamp           DateTime   @default(now())
   isRead              Boolean    @default(false)
-
-  // Relationship
+  
   patientAssignment PatientAssignment @relation(fields: [patientAssignmentId], references: [id], onDelete: Cascade)
 }
 
@@ -192,19 +278,18 @@ model Notification {
   type      NotificationType
   title     String
   content   String
-  metadata  Json? //  Store reading values, message previews, etc. as JSON
+  metadata  Json?
   isRead    Boolean          @default(false)
   isArchived Boolean         @default(false)
   createdAt DateTime         @default(now())
   readAt    DateTime?
-
-  //  Only recipient relationships
+  
   patientId String?
   doctorId  String?
-
+  
   patient Patient? @relation(fields: [patientId], references: [id])
   doctor  Doctor?  @relation(fields: [doctorId], references: [id])
-
+  
   @@index([patientId, isRead, isArchived])
   @@index([doctorId, isRead, isArchived])
   @@index([createdAt])
@@ -213,43 +298,42 @@ model Notification {
 
 model GlucoseThresholds {
   id        String   @id @default(uuid())
-  doctorId  String   @unique // One threshold config per doctor
+  doctorId  String   @unique
   
-  // Hyperglycemia thresholds (mg/dL)
-  hyperglycemiaBeforeMeal    Float @default(95)   // Fasting/before meal
-  hyperglycemiaAfterMeal     Float @default(140)  // 1-2 hours after meal
-  hyperglycemiaMajor         Float @default(180)  // Severe hyperglycemia
+  hyperglycemiaBeforeMeal    Float @default(95)
+  hyperglycemiaAfterMeal     Float @default(140)
+  hyperglycemiaMajor         Float @default(180)
   
-  // Hypoglycemia thresholds (mg/dL)
-  hypoglycemia               Float @default(70)   // Standard hypoglycemia
-  hypoglycemiaMajor          Float @default(54)   // Severe hypoglycemia
+  hypoglycemia               Float @default(70)
+  hypoglycemiaMajor          Float @default(54)
   
-  // Frequency threshold (number of occurrences in 7 days)
   frequentThreshold          Int   @default(3)
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
-  // Relationships
   doctor    Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   
   @@map("glucose_thresholds")
 }
 
+
+
 enum NotificationType {
-  DANGEROUS_READING    // For glucose readings that are HIGH or ELEVATED
-  NEW_MESSAGE         // For new messages between doctor and patient
-  NEW_RECOMMENDATION  // For new recommendations from doctor to patient
-  DAILY_REMINDER      // For daily glucose reading reminders
+  DANGEROUS_READING
+  NEW_MESSAGE
+  NEW_RECOMMENDATION
+  DAILY_REMINDER
+  APPOINTMENT_REMINDER    // remind about upcoming appointment
+  APPOINTMENT_CANCELLED   // appointment was cancelled
+  APPOINTMENT_CONFIRMED   // appointment was confirmed
 }
 
-// enumarating messaging sender type
 enum SenderType {
   DOCTOR
   PATIENT
 }
 
-// enumarting the 6 types of the readings we could have
 enum ReadingType {
   BEFORE_BREAKFAST
   AFTER_BREAKFAST
@@ -259,7 +343,6 @@ enum ReadingType {
   AFTER_DINNER
 }
 
-// enumarting status of patient glucose readings
 enum ReadingStatus {
   NORMAL
   HIGH
@@ -267,8 +350,34 @@ enum ReadingStatus {
 }
 
 enum GDMRiskLevel {
-  LOW        // Low risk (0.0-0.3)
-  MODERATE   // Moderate risk (0.3-0.6)
-  HIGH       // High risk (0.6-0.8)
-  CRITICAL   // Critical risk (0.8-1.0)
+  LOW
+  MODERATE
+  HIGH
+  CRITICAL
+}
+
+enum AppointmentStatus {
+  SCHEDULED      // Appointment is booked and confirmed
+  COMPLETED      // Appointment happened
+  CANCELLED      // Cancelled by patient or doctor
+  NO_SHOW        // Patient didn't show up
+  RESCHEDULED    // Appointment was rescheduled
+}
+
+enum AppointmentType {
+  CONSULTATION   // Regular checkup
+  FOLLOW_UP      // Follow-up appointment
+  EMERGENCY      // Emergency appointment
+  LAB_REVIEW     // Review lab results
+  INITIAL        // First appointment
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
 }

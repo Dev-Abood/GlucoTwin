@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 // Icons
-import { Home, MessageSquare, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Activity, Users } from "lucide-react"
+import { Home, MessageSquare, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Activity, Users, Calendar } from "lucide-react"
 
 interface SidebarProps {
   userType: "patient" | "doctor"
@@ -26,6 +26,7 @@ export default function Sidebar({ userType }: SidebarProps){
   // decided if groupings are expanded
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     navigation: true,
+    appointments: true,
     communication: true,
   })
 
@@ -151,6 +152,37 @@ export default function Sidebar({ userType }: SidebarProps){
                     isCollapsed={isCollapsed}
                   />
                 )}
+              </div>
+            )}
+
+            {!isCollapsed && <Separator className="my-2" />}
+          </div>
+
+          {/* Appointments Group */}
+          <div className="space-y-2">
+            {!isCollapsed && (
+              <Button
+                variant="ghost"
+                onClick={() => toggleGroup("Appointments")}
+                className="h-8 w-full justify-between px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+              >
+                <span className="uppercase tracking-wider">Appointments</span>
+                {expandedGroups.appointments ? (
+                  <ChevronUp className="h-3 w-3" />
+                ) : (
+                  <ChevronDown className="h-3 w-3" />
+                )}
+              </Button>
+            )}
+
+            {(isCollapsed || expandedGroups.appointments) && (
+              <div className="space-y-1">
+                <NavItem 
+                  href={`/${userType}/appointments`}
+                  label={userType === "patient" ? "My Appointments" : "Appointments"}
+                  icon={Calendar}
+                  isCollapsed={isCollapsed}
+                />
               </div>
             )}
 
