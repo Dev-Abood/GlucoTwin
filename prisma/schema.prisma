@@ -23,7 +23,6 @@ model Hospital {
   longitude   Float?   // Hospital location
   
   // Operating hours (stored as JSON for flexibility)
-  // Example: {"monday": {"open": "08:00", "close": "20:00"}, ... and so on}
   operatingHours Json?
   
   createdAt   DateTime @default(now())
