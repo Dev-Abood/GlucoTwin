@@ -46,6 +46,17 @@ export async function getAssignedDoctors(): Promise<ActionResult<any[]>> {
             yearsOfExperience: true,
             bio: true,
             hospitalId: true,
+            hospital: {
+              select: {
+                id: true,
+                name: true,
+                address: true,
+                phone: true,
+                email: true,
+                latitude: true,
+                longitude: true,
+              },
+            },
           },
         },
       },
@@ -84,10 +95,7 @@ export async function getDoctorAvailability(
       where: {
         doctorId,
         isRecurring: true,
-        OR: [
-          { effectiveUntil: null },
-          { effectiveUntil: { gte: startDate } },
-        ],
+        OR: [{ effectiveUntil: null }, { effectiveUntil: { gte: startDate } }],
       },
     });
 
@@ -222,9 +230,7 @@ export async function bookAppointment(data: {
     }
 
     const duration = data.duration || 50;
-    const endTime = new Date(
-      data.appointmentDate.getTime() + duration * 60000
-    );
+    const endTime = new Date(data.appointmentDate.getTime() + duration * 60000);
 
     // Create the appointment
     const appointment = await prisma.appointment.create({
@@ -247,7 +253,7 @@ export async function bookAppointment(data: {
     return { success: true, data: appointment.id };
   } catch (error: any) {
     console.error("Error booking appointment:", error);
-    
+
     // Check for unique constraint violation
     if (error.code === "P2002") {
       return {
@@ -255,7 +261,7 @@ export async function bookAppointment(data: {
         error: "This time slot is already booked",
       };
     }
-    
+
     return { success: false, error: "Failed to book appointment" };
   }
 }
@@ -283,6 +289,17 @@ export async function getPatientAppointments(): Promise<
             specialty: true,
             email: true,
             phone: true,
+            hospital: {
+              select: {
+                id: true,
+                name: true,
+                address: true,
+                phone: true,
+                email: true,
+                latitude: true,
+                longitude: true,
+              },
+            },
           },
         },
       },

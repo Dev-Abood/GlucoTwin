@@ -36,10 +36,23 @@ import {
   Plus,
   XCircle,
   FileText,
+  Building2,
+  Phone,
+  Mail,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AppointmentStatus, AppointmentType } from "@prisma/client";
 import { getPatientAppointments, cancelAppointment } from "./actions";
+
+interface Hospital {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  latitude: number | null;
+  longitude: number | null;
+}
 
 interface Appointment {
   id: string;
@@ -56,6 +69,7 @@ interface Appointment {
     specialty: string | null;
     email: string;
     phone: string;
+    hospital: Hospital;
   };
 }
 
@@ -204,6 +218,29 @@ export default function AppointmentsView() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Hospital Information */}
+        <div className="rounded-lg border p-3 bg-slate-50 dark:bg-slate-900">
+          <div className="flex items-start gap-2 mb-2">
+            <Building2 className="h-4 w-4 text-slate-600 dark:text-slate-400 mt-0.5" />
+            <div className="space-y-1 flex-1">
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                {appointment.doctor.hospital.name}
+              </p>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                  <MapPin className="h-3 w-3" />
+                  <span>{appointment.doctor.hospital.address}</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                  <Phone className="h-3 w-3" />
+                  <span>{appointment.doctor.hospital.phone}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Appointment Details */}
         <div className="grid gap-3">
           <div className="flex items-center gap-2 text-sm">
             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -217,8 +254,12 @@ export default function AppointmentsView() {
             </span>
           </div>
           <div className="flex items-center gap-2 text-sm">
-            <User className="h-4 w-4 text-muted-foreground" />
+            <Mail className="h-4 w-4 text-muted-foreground" />
             <span>{appointment.doctor.email}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <Phone className="h-4 w-4 text-muted-foreground" />
+            <span>{appointment.doctor.phone}</span>
           </div>
         </div>
 
