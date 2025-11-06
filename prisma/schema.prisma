@@ -23,7 +23,7 @@ model Hospital {
   longitude   Float?   // Hospital location
   
   // Operating hours (stored as JSON for flexibility)
-  // Example: {"monday": {"open": "08:00", "close": "20:00"}, ...}
+  // Example: {"monday": {"open": "08:00", "close": "20:00"}, ... and so on}
   operatingHours Json?
   
   createdAt   DateTime @default(now())
@@ -141,7 +141,7 @@ model DoctorAvailability {
   // Time slot details
   dayOfWeek   DayOfWeek        // Which day of the week
   startTime   String           // Format: "HH:MM" (e.g., "09:00")
-  endTime     String           // Format: "HH:MM" (e.g., "17:00")
+  endTime     String           
   
   // For specific date overrides (e.g., holidays, sick days)
   specificDate DateTime?       // If set, this applies to a specific date only
