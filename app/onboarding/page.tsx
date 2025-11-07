@@ -1,13 +1,18 @@
+import { PrismaClient } from "@prisma/client"
 import { currentUser } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import OnboardingForm from "./onboarding-form"
 
+const prisma = new PrismaClient()
+
 export default async function Onboarding() {
   const user = await currentUser()
+  if (!user) redirect("/sign-in")
 
-  if (!user) {
-    redirect("/sign-in")
-  }
+  const hospitals = await prisma.hospital.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  })
 
   return (
     <div className="container max-w-3xl mx-auto py-10 px-4">
@@ -18,9 +23,11 @@ export default async function Onboarding() {
           </h1>
           <p className="text-muted-foreground">Please complete your profile to continue</p>
         </div>
-        <OnboardingForm userEmail={user.emailAddresses[0].emailAddress} />
+        <OnboardingForm
+          userEmail={user.emailAddresses[0].emailAddress}
+          hospitals={hospitals}
+        />
       </div>
     </div>
   )
 }
-

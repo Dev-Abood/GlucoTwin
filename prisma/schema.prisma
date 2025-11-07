@@ -316,8 +316,6 @@ model GlucoseThresholds {
   @@map("glucose_thresholds")
 }
 
-
-
 enum NotificationType {
   DANGEROUS_READING
   NEW_MESSAGE
