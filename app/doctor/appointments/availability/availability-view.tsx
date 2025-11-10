@@ -105,7 +105,7 @@ export default function AvailabilityManagementView() {
       isAvailable: false,
       startTime: "09:00",
       endTime: "17:00",
-    }))
+    })),
   );
 
   // Specific date blocks (vacations, holidays)
@@ -128,7 +128,7 @@ export default function AvailabilityManagementView() {
         // Map recurring availability to weekly schedule
         const schedule = daysOfWeek.map((day) => {
           const existing = result.data.recurringAvailability.find(
-            (a: RecurringAvailability) => a.dayOfWeek === day
+            (a: RecurringAvailability) => a.dayOfWeek === day,
           );
           return existing
             ? {
@@ -162,8 +162,8 @@ export default function AvailabilityManagementView() {
   const handleDayToggle = (dayOfWeek: DayOfWeek, isAvailable: boolean) => {
     setWeeklySchedule((prev) =>
       prev.map((day) =>
-        day.dayOfWeek === dayOfWeek ? { ...day, isAvailable } : day
-      )
+        day.dayOfWeek === dayOfWeek ? { ...day, isAvailable } : day,
+      ),
     );
     setHasChanges(true);
   };
@@ -171,12 +171,12 @@ export default function AvailabilityManagementView() {
   const handleTimeChange = (
     dayOfWeek: DayOfWeek,
     field: "startTime" | "endTime",
-    value: string
+    value: string,
   ) => {
     setWeeklySchedule((prev) =>
       prev.map((day) =>
-        day.dayOfWeek === dayOfWeek ? { ...day, [field]: value } : day
-      )
+        day.dayOfWeek === dayOfWeek ? { ...day, [field]: value } : day,
+      ),
     );
     setHasChanges(true);
   };
@@ -191,7 +191,7 @@ export default function AvailabilityManagementView() {
           startTime: day.startTime,
           endTime: day.endTime,
           isAvailable: day.isAvailable,
-        })
+        }),
       );
 
       const results = await Promise.all(promises);
@@ -471,7 +471,7 @@ export default function AvailabilityManagementView() {
                                 handleTimeChange(
                                   day.dayOfWeek,
                                   "startTime",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="flex-1"
@@ -485,7 +485,7 @@ export default function AvailabilityManagementView() {
                               handleTimeChange(
                                 day.dayOfWeek,
                                 "endTime",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="flex-1"
@@ -511,9 +511,6 @@ export default function AvailabilityManagementView() {
                       <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1 list-disc list-inside">
                         <li>
                           Appointments are 50 minutes long with 10-minute breaks
-                        </li>
-                        <li>
-                          Patients can book 2 hours to 3 months in advance
                         </li>
                         <li>
                           Remember to save your changes before leaving this page
@@ -565,9 +562,7 @@ export default function AvailabilityManagementView() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="notes">
-                            Notes (Optional)
-                          </Label>
+                          <Label htmlFor="notes">Notes (Optional)</Label>
                           <Textarea
                             id="notes"
                             placeholder="e.g., On vacation, Conference, Personal day"
@@ -615,7 +610,7 @@ export default function AvailabilityManagementView() {
                                   year: "numeric",
                                   month: "long",
                                   day: "numeric",
-                                }
+                                },
                               )}
                             </p>
                             {block.notes && (
