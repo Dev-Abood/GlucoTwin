@@ -8,9 +8,6 @@ A comprehensive digital health application for monitoring and predicting gestati
 - Abdulrahman Mahdi – U2200186  
 - Ashraf Bin Adam – U22104510  
 - Omar Farouq – U22100742  
-
-![University Logo Placeholder](insert-your-university-logo.png)
-
 ---
 
 ## Built with the tools and technologies:
