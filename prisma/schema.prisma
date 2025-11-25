@@ -85,8 +85,8 @@ model Doctor {
   patientAssignments PatientAssignment[]
   notifications      Notification[]
   glucoseThresholds  GlucoseThresholds?
-  appointments       Appointment[]        // New: doctor's appointments
-  availabilitySlots  DoctorAvailability[] // New: doctor's availability schedule
+  appointments       Appointment[]        
+  availabilitySlots  DoctorAvailability[] 
   
   @@index([hospitalId])
   @@index([email])

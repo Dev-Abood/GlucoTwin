@@ -429,7 +429,7 @@ export default function BookAppointmentView() {
                 <CardHeader>
                   <CardTitle>Select Date</CardTitle>
                   <CardDescription>
-                    Choose a date for your appointment with Dr. {selectedDoctor?.name}
+                    Choose a date for your appointment with {selectedDoctor?.name}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

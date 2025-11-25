@@ -1,219 +1,253 @@
-// prisma/seed.ts
-import { PrismaClient, ReadingStatus, ReadingType, NotificationType } from '@prisma/client'
-import { addDays, subDays, setHours, setMinutes, setSeconds } from 'date-fns'
+import { PrismaClient, ReadingStatus, ReadingType } from "@prisma/client";
 
-const prisma = new PrismaClient()
-
-const DOCTOR_ID = process.env.DOCTOR_ID || 'user_356w0ytWQ7zWPtbwhAtR5WfciSj'
-
-function d(h: number, m = 0) {
-  const now = new Date()
-  const t = setSeconds(setMinutes(setHours(now, h), m), 0)
-  return t
-}
+const prisma = new PrismaClient();
+const DOCTOR_ID = "user_35nTKMF87IjQy92H759amrVdSpI";
 
 async function main() {
-  const doctor = await prisma.doctor.findUnique({
+  console.log("🧹 Cleaning old demo patients + assignments...");
+
+  const demoEmails = [
+    "patient.stable@demo.local",
+    "patient.high@demo.local",
+    "patient.hypo@demo.local",
+    "patient.variable@demo.local",
+  ];
+
+  // Find old demo patients
+  const oldPatients = await prisma.patient.findMany({
+    where: { email: { in: demoEmails } },
+  });
+
+  const oldPatientIds = oldPatients.map((p) => p.id);
+
+  // Clean child tables
+  await prisma.reading.deleteMany({ where: { patientId: { in: oldPatientIds } } });
+  await prisma.message.deleteMany({
+    where: { patientAssignment: { patientId: { in: oldPatientIds } } },
+  });
+  await prisma.recommendation.deleteMany({
+    where: { patientAssignment: { patientId: { in: oldPatientIds } } },
+  });
+  await prisma.patientAssignment.deleteMany({
+    where: {
+      OR: [
+        { patientId: { in: oldPatientIds } },
+        { doctorId: DOCTOR_ID },
+      ],
+    },
+  });
+
+  await prisma.patient.deleteMany({
+    where: { id: { in: oldPatientIds } },
+  });
+
+  console.log("✨ Cleanup complete");
+
+  // Hospital
+  const hospital = await prisma.hospital.upsert({
+    where: { email: "demo.hospital@glucotwin.local" },
+    update: {},
+    create: {
+      name: "Sharjah Women’s Health Center",
+      address: "Al Nahda, Sharjah",
+      phone: "+971-6-555-0000",
+      email: "demo.hospital@glucotwin.local",
+      latitude: 25.32,
+      longitude: 55.40,
+      operatingHours: {
+        monday: { open: "08:00", close: "20:00" },
+        tuesday: { open: "08:00", close: "20:00" },
+        wednesday: { open: "08:00", close: "20:00" },
+        thursday: { open: "08:00", close: "20:00" },
+        friday: { open: "14:00", close: "20:00" },
+        saturday: { open: "08:00", close: "20:00" },
+        sunday: { open: "08:00", close: "20:00" },
+      },
+    },
+  });
+
+  // Doctor
+  const doctor = await prisma.doctor.upsert({
     where: { id: DOCTOR_ID },
-    include: { hospital: true, glucoseThresholds: true },
-  })
-  if (!doctor) throw new Error('Doctor not found. Set DOCTOR_ID to a valid Doctor.id.')
+    update: {
+      name: "Dr. Abdulla Salem",
+      email: "dr.abdulla@demo.local",
+      phone: "+971-50-123-4567",
+      specialty: "Endocrinology",
+      hospitalId: hospital.id,
+    },
+    create: {
+      id: DOCTOR_ID,
+      name: "Dr. Abdulla Salem",
+      email: "dr.abdulla@demo.local",
+      phone: "+971-50-123-4567",
+      specialty: "Endocrinology",
+      hospitalId: hospital.id,
+    },
+  });
 
-  const hospitalId = doctor.hospitalId
+  console.log("👨‍⚕️ Doctor seeded:", doctor.name);
 
-  const patientsData = Array.from({ length: 10 }).map((_, i) => {
-    const idx = i + 1
-    const age = 25 + (i % 8)
-    const dob = subDays(new Date(), age * 365)
-    const term = 20 + (i % 10)
-    const due = addDays(new Date(), (40 - term) * 7)
-    return {
-      patientId: `P-${String(idx).padStart(3, '0')}`,
-      email: `patient${idx}@demo.local`,
-      phone: `+9715${Math.floor(10000000 + Math.random() * 89999999)}`,
-      name: `Patient ${idx}`,
-      age,
-      dateOfBirth: dob,
-      term,
-      dueDate: due,
-      hospitalId,
-      latitude: 25.2956 + Math.random() * 0.01,
-      longitude: 55.4624 + Math.random() * 0.01,
-      address: 'Sharjah, UAE',
+  // Female patient profiles
+  const patients = [
+    {
+      name: "Maryam Khalid",
+      email: "patient.stable@demo.local",
+      patientId: "PT-DEMO-001",
+      profile: "stable",
+    },
+    {
+      name: "Aisha Rahman",
+      email: "patient.high@demo.local",
+      patientId: "PT-DEMO-002",
+      profile: "high",
+    },
+    {
+      name: "Fatima Noor",
+      email: "patient.hypo@demo.local",
+      patientId: "PT-DEMO-003",
+      profile: "hypo",
+    },
+    {
+      name: "Layla Hassan",
+      email: "patient.variable@demo.local",
+      patientId: "PT-DEMO-004",
+      profile: "variable",
+    },
+  ];
+
+  const readingTypes: ReadingType[] = [
+    "BEFORE_BREAKFAST",
+    "AFTER_BREAKFAST",
+    "BEFORE_LUNCH",
+    "AFTER_LUNCH",
+    "BEFORE_DINNER",
+    "AFTER_DINNER",
+  ];
+
+  const timeMap = {
+    BEFORE_BREAKFAST: "07:00",
+    AFTER_BREAKFAST: "09:00",
+    BEFORE_LUNCH: "12:30",
+    AFTER_LUNCH: "14:30",
+    BEFORE_DINNER: "18:30",
+    AFTER_DINNER: "20:30",
+  };
+
+  const today = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - 20);
+
+  let total = 0;
+
+  for (const p of patients) {
+    console.log(`\n👤 Creating patient: ${p.name}`);
+
+    const patient = await prisma.patient.upsert({
+      where: { email: p.email },
+      update: {
+        name: p.name,
+        patientId: p.patientId,
+        hospitalId: hospital.id,
+      },
+      create: {
+        patientId: p.patientId,
+        email: p.email,
+        phone: "+971-50-222-1111",
+        name: p.name,
+        age: 29,
+        dateOfBirth: new Date("1996-01-01"),
+        term: 27,
+        dueDate: new Date("2025-02-21"),
+        latitude: 25.315,
+        longitude: 55.395,
+        address: "Sharjah, UAE",
+        hospitalId: hospital.id,
+      },
+    });
+
+    // Assignment
+    await prisma.patientAssignment.create({
+      data: {
+        doctorId: DOCTOR_ID,
+        patientId: patient.id,
+        lastVisitDate: new Date(),
+        addedDate: new Date(start.getTime() - 5 * 86400000),
+      },
+    });
+
+    // Generate readings
+    const readings = [];
+
+    for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+      for (const type of readingTypes) {
+        const dateOnly = new Date(d);
+        dateOnly.setHours(0, 0, 0, 0);
+
+        let base = 90;
+        let variance = 12;
+
+        if (p.profile === "high") {
+          base = 150;
+          variance = 30;
+        }
+        if (p.profile === "hypo") {
+          base = 70;
+          variance = 25;
+        }
+        if (p.profile === "variable") {
+          base = 110;
+          variance = 40;
+        }
+
+        let level = base + (Math.random() - 0.5) * variance * 2;
+        level = Math.max(50, Math.min(220, level));
+        level = Math.round(level * 10) / 10;
+
+        const isBefore = type.includes("BEFORE");
+
+        const status: ReadingStatus = isBefore
+          ? level >= 95
+            ? "HIGH"
+            : level >= 90
+            ? "ELEVATED"
+            : "NORMAL"
+          : level >= 140
+          ? "HIGH"
+          : level >= 130
+          ? "ELEVATED"
+          : "NORMAL";
+
+        readings.push({
+          patientId: patient.id,
+          date: dateOnly,
+          time: timeMap[type],
+          type,
+          level,
+          status,
+          notes: null,
+        });
+      }
     }
-  })
 
-  const createdPatients = await prisma.$transaction(
-    patientsData.map((p) => prisma.patient.create({ data: p }))
-  )
+    await prisma.reading.createMany({
+      data: readings,
+    });
 
-  const assignments = await prisma.$transaction(
-    createdPatients.map((p) =>
-      prisma.patientAssignment.create({
-        data: {
-          doctorId: doctor.id,
-          patientId: p.id,
-          lastVisitDate: subDays(new Date(), 7),
-          addedDate: new Date(),
-        },
-      })
-    )
-  )
+    total += readings.length;
 
-function S(level: number, type: ReadingType): ReadingStatus {
-  const beforeMealTypes: ReadingType[] = [
-    ReadingType.BEFORE_BREAKFAST,
-    ReadingType.BEFORE_LUNCH,
-    ReadingType.BEFORE_DINNER,
-  ]
-  const before = beforeMealTypes.includes(type)
-
-  if (before) {
-    if (level < 95) return ReadingStatus.NORMAL
-    if (level < 105) return ReadingStatus.ELEVATED
-    return ReadingStatus.HIGH
-  } else {
-    if (level < 140) return ReadingStatus.NORMAL
-    if (level < 160) return ReadingStatus.ELEVATED
-    return ReadingStatus.HIGH
-  }
-}
-
-
-  function R(patientId: string, dayOffset: number, type: ReadingType, level: number, timeStr: string, notes?: string) {
-    const date = subDays(new Date(), dayOffset)
-    return {
-      patientId,
-      date: new Date(date.getFullYear(), date.getMonth(), date.getDate()),
-      time: timeStr,
-      type,
-      level,
-      status: S(level, type),
-      notes,
-    }
+    console.log(`📈 Added ${readings.length} readings for ${p.name}`);
   }
 
-  const T = {
-    BB: ReadingType.BEFORE_BREAKFAST,
-    AB: ReadingType.AFTER_BREAKFAST,
-    BL: ReadingType.BEFORE_LUNCH,
-    AL: ReadingType.AFTER_LUNCH,
-    BD: ReadingType.BEFORE_DINNER,
-    AD: ReadingType.AFTER_DINNER,
-  }
-
-  const scenarios = [
-    // 1) Mostly normal — no alerts
-    (p: string) => [
-      R(p, 0, T.BB, 90, '08:00'),
-      R(p, 0, T.AB, 130, '10:00'),
-      R(p, 1, T.BL, 92, '12:30'),
-      R(p, 1, T.AL, 135, '14:30'),
-      R(p, 2, T.BD, 93, '19:00'),
-      R(p, 2, T.AD, 138, '21:00'),
-    ],
-    // 2) Single Hyperglycaemia Major (>=180)
-    (p: string) => [
-      R(p, 0, T.AB, 185, '10:00', 'Major high'),
-      R(p, 1, T.BB, 94, '08:00'),
-      R(p, 2, T.AL, 145, '14:30'),
-    ],
-    // 3) Single Hypoglycaemia Major (<=54)
-    (p: string) => [
-      R(p, 0, T.BL, 50, '12:30', 'Major low'),
-      R(p, 1, T.AB, 120, '10:00'),
-      R(p, 2, T.AD, 130, '21:00'),
-    ],
-    // 4) Frequent Hyperglycaemia (3+ elevated in 7 days, before>=95 or after>=140)
-    (p: string) => [
-      R(p, 0, T.BB, 100, '08:00', 'elevated before'),
-      R(p, 2, T.AB, 150, '10:00', 'elevated after'),
-      R(p, 4, T.AL, 155, '14:30', 'elevated after'),
-      R(p, 6, T.BD, 102, '19:00', 'elevated before'),
-    ],
-    // 5) Frequent Hypoglycaemia (3+ lows <=70)
-    (p: string) => [
-      R(p, 0, T.AD, 68, '21:00', 'low'),
-      R(p, 2, T.BB, 65, '08:00', 'low'),
-      R(p, 4, T.AL, 70, '14:30', 'low'),
-      R(p, 6, T.BD, 95, '19:00'),
-    ],
-    // 6) Repeated high after meals (>=160) -> frequent hyper + high status
-    (p: string) => [
-      R(p, 0, T.AB, 165, '10:00'),
-      R(p, 1, T.AL, 170, '14:30'),
-      R(p, 3, T.AD, 162, '21:00'),
-      R(p, 5, T.AB, 158, '10:00'), // elevated, still counts for frequent if >=140
-    ],
-    // 7) Elevated-only (no frequent: only 2 qualifying)
-    (p: string) => [
-      R(p, 0, T.BB, 100, '08:00', 'elevated before'),
-      R(p, 3, T.AB, 145, '10:00', 'elevated after'),
-      R(p, 6, T.BL, 90, '12:30'),
-    ],
-    // 8) Another Hyperglycaemia Major spike
-    (p: string) => [
-      R(p, 0, T.AB, 200, '10:00', 'Major high'),
-      R(p, 1, T.BB, 96, '08:00'),
-      R(p, 2, T.AL, 150, '14:30'),
-    ],
-    // 9) Mixed moderate highs before meals (status HIGH but under 180)
-    (p: string) => [
-      R(p, 0, T.BB, 112, '08:00'),
-      R(p, 2, T.BL, 110, '12:30'),
-      R(p, 4, T.BD, 109, '19:00'),
-    ],
-    // 10) Nocturnal-ish single hypo (non-major)
-    (p: string) => [
-      R(p, 0, T.BD, 69, '19:00', 'low'),
-      R(p, 1, T.AB, 130, '10:00'),
-      R(p, 2, T.AL, 135, '14:30'),
-    ],
-  ]
-
-  const allReadings: any[] = []
-  createdPatients.forEach((p, i) => {
-    const gen = scenarios[i % scenarios.length]
-    allReadings.push(...gen(p.id))
-  })
-
-  const insertedReadings = await prisma.$transaction(
-    allReadings.map((rd) => prisma.reading.create({ data: rd }))
-  )
-
-  const notificationsData = []
-  for (const rd of insertedReadings) {
-    const isMajorHigh = rd.level >= 180
-    const isMajorLow = rd.level <= 54
-    if (isMajorHigh || isMajorLow) {
-      notificationsData.push({
-        type: NotificationType.DANGEROUS_READING,
-        title: isMajorHigh ? 'Hyperglycaemia Major' : 'Hypoglycaemia Major',
-        content: isMajorHigh
-          ? `Reading ${rd.level} mg/dL at ${rd.time} indicates major hyperglycaemia.`
-          : `Reading ${rd.level} mg/dL at ${rd.time} indicates major hypoglycaemia.`,
-        metadata: { readingId: rd.id, readingType: rd.type, level: rd.level },
-        patientId: rd.patientId,
-        doctorId: doctor.id,
-      })
-    }
-  }
-
-  if (notificationsData.length) {
-    await prisma.$transaction(
-      notificationsData.map((n) => prisma.notification.create({ data: n }))
-    )
-  }
-
-  console.log(`Seeded ${createdPatients.length} patients, ${assignments.length} assignments, ${insertedReadings.length} readings, ${notificationsData.length} notifications.`)
+  console.log("\n🎉 DONE!");
+  console.log("Total readings:", total);
+  console.log("Patients created:", patients.length);
+  console.log("Doctor:", doctor.name);
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect()
+  .catch((e) => {
+    console.error("❌ Seed error:", e);
+    process.exit(1);
   })
-  .catch(async (e) => {
-    console.error(e)
-    await prisma.$disconnect()
-    process.exit(1)
-  })
+  .finally(async () => prisma.$disconnect());
